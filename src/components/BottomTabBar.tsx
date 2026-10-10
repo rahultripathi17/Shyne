@@ -24,7 +24,7 @@ export const BOTTOM_BAR_HEIGHT = 62;
 
 /**
  * Android (and web) tab bar: a solid white bar docked to the bottom, like Urban Company and
- * Swiggy — no floating glass. The selected tab gets a Hoora-yellow marker, a filled icon and a
+ * Swiggy — no floating glass. The selected tab gets a dark marker, a filled icon and a
  * bold label.
  */
 export function BottomTabBar({ state, descriptors, navigation }: TabBarProps) {
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 3,
   },
-  // Short yellow bar on the top edge above the selected tab.
+  // Short dark bar on the top edge above the selected tab.
   marker: {
     position: 'absolute',
     top: 0,
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   markerOn: {
-    backgroundColor: ink.yellowDeep,
+    backgroundColor: ink.text,
   },
   label: {
     fontFamily: fonts.semiBold,

@@ -18,7 +18,7 @@ export default function TabsLayout() {
   if (Platform.OS === 'ios') {
     // Apple's own tab bar — Liquid Glass on iOS 26+.
     return (
-      <NativeTabs tintColor={ink.yellowDeep} minimizeBehavior="never">
+      <NativeTabs tintColor={ink.text} minimizeBehavior="never">
         {TABS.map((t) => (
           // Home draws its banner under the status bar, so it opts out of the automatic top inset.
           <NativeTabs.Trigger key={t.name} name={t.name} disableAutomaticContentInsets={t.name === 'index'}>

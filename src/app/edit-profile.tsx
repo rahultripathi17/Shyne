@@ -26,8 +26,8 @@ import { TopBar } from '../components/TopBar';
 import { signInWith, SSO_LABEL, ssoErrorMessage, type SsoProvider } from '../lib/sso';
 import { type Gender, useAppStore } from '../store/AppStore';
 
-const GENDERS: Gender[] = ['Male', 'Female', 'Other', 'Prefer not to say'];
-const PROFILE_AVATAR = require('../../assets/profile/siddharth-jain.webp');
+const GENDERS: Gender[] = ['Male', 'Female'];
+const PROFILE_AVATAR = require('../../assets/profile/rahul-demo.jpg');
 
 /** Types "12081995" as "12/08/1995". */
 const formatDob = (v: string) => {
@@ -54,18 +54,17 @@ export default function EditProfileScreen() {
   const toast = useToast();
 
   const [name, setName] = useState(store.name ?? '');
-  const [gender, setGender] = useState<Gender | undefined>(store.gender);
+  const [gender, setGender] = useState<Gender | undefined>(store.gender === 'Male' || store.gender === 'Female' ? store.gender : undefined);
   const [dob, setDob] = useState(store.dob ?? '');
   const [photoUri, setPhotoUri] = useState(store.photoUri);
   const [failedPhotoUri, setFailedPhotoUri] = useState<string>();
   const [changingAccount, setChangingAccount] = useState(false);
+  const [confirmRemoveEmail, setConfirmRemoveEmail] = useState(false);
   const [focus, setFocus] = useState<string>();
   const selectedProvider: SsoProvider | undefined = linked?.apple ? 'apple' : linked?.google ? 'google' : undefined;
 
   const trimmedName = name.trim();
-  const nameParts = trimmedName.toLowerCase().split(/\s+/).filter(Boolean);
-  const sampleLocalPart = [nameParts[0], nameParts.length > 1 ? nameParts[nameParts.length - 1] : undefined].filter(Boolean).join('.') || 'hoora.user';
-  const linkedEmail = store.email || `${sampleLocalPart}@${selectedProvider === 'apple' ? 'icloud.com' : 'gmail.com'}`;
+  const linkedEmail = store.email || 'rahultripathixx@gmail.com';
   const dobOk = isDob(dob);
   const changed =
     trimmedName !== (store.name ?? '') ||
@@ -92,9 +91,17 @@ export default function EditProfileScreen() {
       return;
     }
     if (!trimmedName && result.name) setName(result.name);
-    setProfile({ linked: { [provider]: true }, email: result.email });
+    setProfile({ linked: { [provider]: true }, email: result.email, emailRemoved: false });
     setChangingAccount(false);
+    setConfirmRemoveEmail(false);
     toast.show(`${SSO_LABEL[provider]} account connected`);
+  };
+
+  const removeEmail = () => {
+    setProfile({ email: undefined, linked: undefined, emailRemoved: true });
+    setChangingAccount(false);
+    setConfirmRemoveEmail(false);
+    toast.show('Email removed from your profile');
   };
 
   const save = () => {
@@ -161,8 +168,8 @@ export default function EditProfileScreen() {
                 <Ionicons name={selectedProvider === 'apple' ? 'logo-apple' : 'logo-google'} size={22} color={ink.text} />
               </View>
               <View style={styles.accountCopy}>
-                <Text style={styles.accountProvider}>{SSO_LABEL[selectedProvider]}</Text>
                 <Text style={styles.accountEmail}>{linkedEmail}</Text>
+                <Text style={styles.accountProvider}>Connected with {SSO_LABEL[selectedProvider]}</Text>
               </View>
               <Pressable onPress={() => setChangingAccount((value) => !value)} style={styles.changeAccount} accessibilityRole="button" accessibilityLabel="Change sign-in account">
                 <Text style={styles.changeAccountText}>{changingAccount ? 'Cancel' : 'Change'}</Text>
@@ -176,8 +183,34 @@ export default function EditProfileScreen() {
           )}
           {(!selectedProvider || changingAccount) && (
             <View style={[styles.accountOptions, !!selectedProvider && styles.accountOptionsSeparated]}>
-              <SsoButton provider="google" onPress={() => void connect('google')} />
-              {Platform.OS === 'ios' && <SsoButton provider="apple" onPress={() => void connect('apple')} />}
+              <SsoButton provider="google" verb="Connect with" onPress={() => void connect('google')} />
+              {Platform.OS === 'ios' && <SsoButton provider="apple" verb="Connect with" onPress={() => void connect('apple')} />}
+            </View>
+          )}
+          {selectedProvider && (
+            <View style={styles.removeEmailArea}>
+              {confirmRemoveEmail ? (
+                <>
+                  <Text style={styles.removeEmailConfirm}>Remove this email? Your mobile number will stay on your profile.</Text>
+                  <View style={styles.removeEmailActions}>
+                    <Pressable onPress={() => setConfirmRemoveEmail(false)} style={styles.keepEmailButton} accessibilityRole="button">
+                      <Text style={styles.keepEmailText}>Keep email</Text>
+                    </Pressable>
+                    <Pressable onPress={removeEmail} style={styles.removeEmailButton} accessibilityRole="button">
+                      <Text style={styles.removeEmailButtonText}>Remove</Text>
+                    </Pressable>
+                  </View>
+                </>
+              ) : (
+                <Pressable
+                  onPress={() => { setChangingAccount(false); setConfirmRemoveEmail(true); }}
+                  style={styles.removeEmailLink}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="trash-outline" size={16} color={ink.red} />
+                  <Text style={styles.removeEmailLinkText}>Remove email</Text>
+                </Pressable>
+              )}
             </View>
           )}
         </View>
@@ -320,7 +353,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: ink.line,
-    backgroundColor: '#FAFAFB',
+    backgroundColor: '#FFFFFF',
   },
   accountRow: {
     flexDirection: 'row',
@@ -342,20 +375,24 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   accountProvider: {
-    fontFamily: fonts.bold,
-    fontSize: 14,
-    color: ink.text,
-  },
-  accountEmail: {
-    marginTop: 2,
+    marginTop: 3,
     fontFamily: fonts.medium,
     fontSize: 12,
-    lineHeight: 17,
     color: ink.muted,
+  },
+  accountEmail: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: ink.text,
   },
   changeAccount: {
     minHeight: 36,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: ink.line,
+    backgroundColor: '#F7F8FA',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -363,7 +400,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 12,
     color: ink.text,
-    textDecorationLine: 'underline',
   },
   accountTitle: {
     fontFamily: fonts.bold,
@@ -384,6 +420,63 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     borderTopWidth: 1,
     borderTopColor: ink.line,
+  },
+  removeEmailArea: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: ink.line,
+  },
+  removeEmailLink: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    alignSelf: 'flex-start',
+  },
+  removeEmailLinkText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    color: ink.red,
+  },
+  removeEmailConfirm: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    lineHeight: 19,
+    color: ink.text,
+  },
+  removeEmailActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  keepEmailButton: {
+    flex: 1,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: ink.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  keepEmailText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: ink.text,
+  },
+  removeEmailButton: {
+    flex: 1,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: ink.red,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeEmailButtonText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: '#FFFFFF',
   },
   locked: {
     flexDirection: 'row',

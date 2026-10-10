@@ -13,6 +13,9 @@ import {
 // Swap for a backend (e.g. Supabase) once accounts are real.
 
 const STORAGE_KEY = 'hoora/state/v1';
+const DEMO_PHONE = '+91 84088 54626';
+const DEMO_NAME = 'Rahul Tripathi';
+const DEMO_EMAIL = 'rahultripathixx@gmail.com';
 
 export type VehicleType = 'car' | 'bike';
 
@@ -51,13 +54,15 @@ export type Booking = {
   createdAt: number;
 };
 
-export type Gender = 'Male' | 'Female' | 'Other' | 'Prefer not to say';
+export type Gender = 'Male' | 'Female';
 
 type Persisted = {
   onboarded: boolean;
   phone: string;
   name?: string;
   email?: string;
+  /** Keeps a deliberately removed demo email hidden across app restarts. */
+  emailRemoved?: boolean;
   gender?: Gender;
   /** DD/MM/YYYY */
   dob?: string;
@@ -72,14 +77,51 @@ type Persisted = {
   bookings: Booking[];
 };
 
-type ProfilePatch = Partial<Pick<Persisted, 'name' | 'email' | 'gender' | 'dob' | 'photoUri' | 'blackMember' | 'linked'>>;
+type ProfilePatch = Partial<Pick<Persisted, 'name' | 'email' | 'emailRemoved' | 'gender' | 'dob' | 'photoUri' | 'blackMember' | 'linked'>>;
 
 const EMPTY: Persisted = { onboarded: false, phone: '', location: null, cars: [], bookings: [] };
+type DemoProvider = 'apple' | 'google';
+
+const demoIdentity = (provider: DemoProvider = 'google') => ({
+  phone: DEMO_PHONE,
+  name: DEMO_NAME,
+  email: DEMO_EMAIL,
+  emailRemoved: false,
+  linked: { [provider]: true },
+  photoUri: undefined,
+});
+
+/** Carry older prototype profiles forward to the current demo identity and sign-in model. */
+function migrateSavedProfile(saved: Partial<Persisted>): Partial<Persisted> {
+  const profile = { ...saved };
+  if (profile.name === 'Siddharth Jain' || (profile.onboarded && !profile.name)) {
+    profile.name = DEMO_NAME;
+  }
+  if (
+    profile.email === 'siddharth.jain@example.com' ||
+    profile.email === 'siddharth.jain@privaterelay.example.com'
+  ) {
+    profile.email = DEMO_EMAIL;
+  }
+  if (profile.onboarded) {
+    profile.phone = DEMO_PHONE;
+    if (profile.emailRemoved) {
+      profile.email = undefined;
+      profile.linked = undefined;
+    } else {
+      profile.email = DEMO_EMAIL;
+      profile.linked = profile.linked?.apple ? { apple: true } : { google: true };
+    }
+  }
+  if (profile.gender !== 'Male' && profile.gender !== 'Female') delete profile.gender;
+  return profile;
+}
 
 type AppState = Persisted & {
   ready: boolean;
   selectedCar: SavedCar | undefined;
   setPhone: (phone: string) => void;
+  activateDemoAccount: (provider?: DemoProvider) => void;
   setProfile: (patch: ProfilePatch) => void;
   setLocation: (location: SavedLocation) => void;
   completeOnboarding: () => void;
@@ -103,7 +145,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((raw) => {
-        if (raw) setState({ ...EMPTY, ...(JSON.parse(raw) as Partial<Persisted>) });
+        if (raw) setState({ ...EMPTY, ...migrateSavedProfile(JSON.parse(raw) as Partial<Persisted>) });
       })
       .catch(() => {})
       .finally(() => setReady(true));
@@ -123,9 +165,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       ready,
       selectedCar: state.cars.find((c) => c.id === state.selectedCarId) ?? state.cars[0],
       setPhone: (phone) => update(() => ({ phone })),
+      activateDemoAccount: (provider) => update(() => demoIdentity(provider)),
       setProfile: (patch) => update(() => patch),
       setLocation: (location) => update(() => ({ location })),
-      completeOnboarding: () => update(() => ({ onboarded: true })),
+      completeOnboarding: () => update((s) => ({
+        onboarded: true,
+        ...demoIdentity(s.linked?.apple ? 'apple' : 'google'),
+      })),
       addCar: (car) => {
         const id = newId();
         update((s) => ({ cars: [...s.cars, { ...car, id }], selectedCarId: id }));

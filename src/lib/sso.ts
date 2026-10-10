@@ -11,8 +11,8 @@ export type SsoResult =
   | { ok: false; reason: 'unavailable' };
 
 const DEMO_ACCOUNTS: Record<SsoProvider, { name: string; email: string }> = {
-  google: { name: 'Siddharth Jain', email: 'siddharth.jain@example.com' },
-  apple: { name: 'Siddharth Jain', email: 'siddharth.jain@privaterelay.example.com' },
+  google: { name: 'Rahul Tripathi', email: 'rahultripathixx@gmail.com' },
+  apple: { name: 'Rahul Tripathi', email: 'rahultripathixx@gmail.com' },
 };
 
 export async function signInWith(provider: SsoProvider): Promise<SsoResult> {

@@ -22,7 +22,7 @@ type Channel = 'sms' | 'whatsapp';
 
 export default function OtpScreen() {
   const insets = useSafeAreaInsets();
-  const { phone, setProfile } = useAppStore();
+  const { phone, activateDemoAccount } = useAppStore();
   const [code, setCode] = useState('');
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
   const [channel, setChannel] = useState<Channel>('sms');
@@ -37,6 +37,7 @@ export default function OtpScreen() {
   const verify = (value: string) => {
     if (value.length !== LENGTH) return;
     // Prototype: no SMS/WhatsApp backend yet, so any 4-digit code is accepted.
+    activateDemoAccount();
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.push('/onboarding/location');
   };
@@ -56,11 +57,7 @@ export default function OtpScreen() {
       return;
     }
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setProfile({
-      ...(result.name ? { name: result.name } : {}),
-      ...(result.email ? { email: result.email } : {}),
-      linked: { [provider]: true },
-    });
+    activateDemoAccount(provider);
     router.push('/onboarding/location');
   };
 
