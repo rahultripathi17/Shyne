@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as Haptics from 'expo-haptics';
 import type { Tabs } from 'expo-router';
 import type { ComponentProps } from 'react';
@@ -14,10 +15,12 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 // Outline when idle, filled when selected — always the same shape.
 export const TAB_ICONS: Record<string, [IconName, IconName]> = {
   index: ['home-outline', 'home'],
-  bookings: ['receipt-outline', 'receipt'],
   rewards: ['gift-outline', 'gift'],
   profile: ['person-circle-outline', 'person-circle'],
 };
+
+// Bookings: a booking ticket, outline when idle and filled when selected (from Material icons).
+const BOOKINGS_ICON = ['ticket-confirmation-outline', 'ticket-confirmation'] as const;
 
 /** Height of the docked bar above the system navigation area. */
 export const BOTTOM_BAR_HEIGHT = 62;
@@ -56,7 +59,15 @@ export function BottomTabBar({ state, descriptors, navigation }: TabBarProps) {
             style={styles.item}
           >
             <View style={[styles.marker, focused && styles.markerOn]} />
-            <Ionicons name={focused ? filled : outline} size={23} color={focused ? ink.text : '#8A8D95'} />
+            {route.name === 'bookings' ? (
+              <MaterialCommunityIcons
+                name={BOOKINGS_ICON[focused ? 1 : 0]}
+                size={24}
+                color={focused ? ink.text : '#8A8D95'}
+              />
+            ) : (
+              <Ionicons name={focused ? filled : outline} size={23} color={focused ? ink.text : '#8A8D95'} />
+            )}
             <Text style={[styles.label, focused && styles.labelOn]} numberOfLines={1}>
               {label}
             </Text>

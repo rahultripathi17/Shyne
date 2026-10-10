@@ -13,7 +13,7 @@ import {
 // Swap for a backend (e.g. Supabase) once accounts are real.
 
 const STORAGE_KEY = 'hoora/state/v1';
-const DEMO_PHONE = '+91 84088 54626';
+const DEMO_PHONE = '+91 86687 15479';
 const DEMO_NAME = 'Rahul Tripathi';
 const DEMO_EMAIL = 'rahultripathixx@gmail.com';
 

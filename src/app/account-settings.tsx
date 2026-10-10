@@ -11,35 +11,21 @@ import { TopBar } from '../components/TopBar';
 import { useAppStore } from '../store/AppStore';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
-type Row = { key: string; label: string; icon: IconName; value?: string; danger?: boolean };
+type Row = { key: string; label: string; icon: IconName };
 
-/** Account Settings — sign-in, privacy, about & legal, and account actions in one place. */
+/** Account Settings — privacy, about & legal, and deleting the account. */
 export default function AccountSettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { phone, linked, signOut } = useAppStore();
+  const { signOut } = useAppStore();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const toast = useToast();
-  const connectedProviders = [linked?.google && 'Google', linked?.apple && 'Apple'].filter(Boolean);
 
+  // Only what isn't already on Profile: privacy, about & legal, then deleting the account last.
+  // Sign-in details live in Edit profile and Log out sits at the bottom of Profile.
   const sections: { title: string; rows: Row[] }[] = [
     {
-      title: 'Sign-in',
-      rows: [
-        { key: 'phone', label: 'Mobile number', icon: 'call-outline', value: phone || '—' },
-        {
-          key: 'sign-in-methods',
-          label: 'Sign-in methods',
-          icon: 'key-outline',
-          value: connectedProviders.length ? connectedProviders.join(', ') : 'Set up',
-        },
-      ],
-    },
-    {
       title: 'Privacy',
-      rows: [
-        { key: 'tracking', label: 'Manage app tracking', icon: 'finger-print-outline' },
-        { key: 'location', label: 'Location access', icon: 'navigate-outline' },
-      ],
+      rows: [{ key: 'tracking', label: 'Manage app tracking', icon: 'finger-print-outline' }],
     },
     {
       title: 'About',
@@ -52,9 +38,8 @@ export default function AccountSettingsScreen() {
   ];
 
   const onRow = (key: string, label: string) => {
-    if (key === 'sign-in-methods') router.push('/edit-profile');
-    else if (key === 'tracking' || key === 'location') void Linking.openSettings();
-    else if (key !== 'phone') toast.show(`${label} — coming soon`);
+    if (key === 'tracking') void Linking.openSettings();
+    else toast.show(`${label} — coming soon`);
   };
 
   return (
@@ -70,28 +55,12 @@ export default function AccountSettingsScreen() {
                   {i > 0 && <View style={styles.rule} />}
                   <Pressable
                     onPress={() => onRow(r.key, r.label)}
-                    disabled={r.key === 'phone'}
                     style={({ pressed }) => [styles.row, pressed && { backgroundColor: '#FAFAFB' }]}
                     accessibilityRole="button"
                   >
                     <Ionicons name={r.icon} size={20} color={ink.text} />
                     <Text style={styles.label}>{r.label}</Text>
-                    {r.value ? (
-                      <Text
-                        style={[
-                          styles.value,
-                          r.key === 'sign-in-methods' && !connectedProviders.length && styles.valueAction,
-                          r.key === 'sign-in-methods' && !!connectedProviders.length && styles.valueOk,
-                        ]}
-                      >
-                        {r.value}
-                      </Text>
-                    ) : null}
-                    {r.key === 'phone' ? (
-                      <Ionicons name="checkmark-circle" size={16} color="#1E8E4E" />
-                    ) : (
-                      <Ionicons name="chevron-forward" size={18} color={ink.faint} />
-                    )}
+                    <Ionicons name="chevron-forward" size={18} color={ink.faint} />
                   </Pressable>
                 </Fragment>
               ))}
@@ -101,11 +70,6 @@ export default function AccountSettingsScreen() {
 
         <Text style={styles.section}>Account</Text>
         <View style={styles.card}>
-          <Pressable onPress={signOut} style={({ pressed }) => [styles.row, pressed && { backgroundColor: '#FAFAFB' }]} accessibilityRole="button">
-            <Ionicons name="log-out-outline" size={20} color={ink.text} />
-            <Text style={styles.label}>Log out</Text>
-          </Pressable>
-          <View style={styles.rule} />
           {confirmDelete ? (
             <View style={styles.confirm}>
               <Text style={styles.confirmTitle}>Delete your Hoora account?</Text>
@@ -178,18 +142,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     fontSize: 15,
     color: ink.text,
-  },
-  value: {
-    fontFamily: fonts.semiBold,
-    fontSize: 13,
-    color: ink.muted,
-  },
-  valueAction: {
-    fontFamily: fonts.bold,
-    color: ink.gold,
-  },
-  valueOk: {
-    color: '#1E8E4E',
   },
   confirm: {
     padding: 16,

@@ -1,10 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { fonts } from '../theme';
-import { ART, type Art, FittedArt, PRODUCT_GROUP, ProductCluster, WASH_GROUP, WashCluster } from './artwork';
+import { ART, type Art, FittedArt } from './artwork';
 import { ink, SPACE } from './homeTheme';
 import { PressableScale } from './motion';
-import { ScaledBox } from './ScaledBox';
 
 export type CategoryId =
   | 'wash'
@@ -42,28 +41,28 @@ export function MainCategories({ width, onPress }: { width: number; onPress: (id
           </Text>
         </View>
         <View style={[styles.washPanel, { width: panelW }]}>
-          <ScaledBox designWidth={WASH_GROUP.w} designHeight={WASH_GROUP.h} width={panelW - 10}>
-            <WashCluster />
-          </ScaledBox>
+          <FittedArt art={ART.wash} box={{ w: panelW - 10, h: 86 }} align="bottom" />
         </View>
       </PressableScale>
 
       <View style={[styles.duo, { gap }]}>
         <PressableScale onPress={() => onPress('garage')} scaleTo={0.97} style={[styles.small, { width: halfW }]} accessibilityLabel="Garage service">
-          <Text style={styles.smallTitle}>Garage Service</Text>
+          <Text style={styles.smallTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+            Garage Service
+          </Text>
           <Text style={styles.smallSub}>Free pickup & drop</Text>
-          <View style={styles.smallArt}>
-            <FittedArt art={ART.garage} box={{ w: 52, h: 42 }} align="bottom" />
+          <View style={styles.smallPanel}>
+            <FittedArt art={ART.garage} box={{ w: halfW - 40, h: 62 }} align="center" />
           </View>
         </PressableScale>
 
-        <PressableScale onPress={() => onPress('accessories')} scaleTo={0.97} style={[styles.small, { width: halfW }]} accessibilityLabel="Accessories">
-          <Text style={styles.smallTitle}>Accessories</Text>
+        <PressableScale onPress={() => onPress('accessories')} scaleTo={0.97} style={[styles.small, { width: halfW }]} accessibilityLabel="Products and accessories">
+          <Text style={styles.smallTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+            Products & Accessories
+          </Text>
           <Text style={styles.smallSub}>Care kits & add-ons</Text>
-          <View style={[styles.smallArt, { right: 6 }]}>
-            <ScaledBox designWidth={PRODUCT_GROUP.w} designHeight={PRODUCT_GROUP.h} width={Math.min(92, halfW - 60)}>
-              <ProductCluster />
-            </ScaledBox>
+          <View style={styles.smallPanel}>
+            <FittedArt art={ART.accessories} box={{ w: halfW - 40, h: 62 }} align="center" />
           </View>
         </PressableScale>
       </View>
@@ -89,7 +88,7 @@ export const GROUPS: Group[] = [
   {
     title: 'Papers & payments',
     tiles: [
-      { id: 'challan', label: 'Clear\nChallan', art: ART.challan },
+      { id: 'challan', label: 'Clear My\nChallan', art: ART.challan },
       { id: 'insurance', label: 'Insurance', art: ART.insurance },
       { id: 'fastag', label: 'FASTag', art: ART.fastag },
       { id: 'qr', label: 'Connect\nQR', art: ART.qr },
@@ -98,7 +97,7 @@ export const GROUPS: Group[] = [
   {
     title: 'On the road',
     tiles: [
-      { id: 'roadside', label: 'Roadside\nHelp', art: ART.roadside },
+      { id: 'roadside', label: 'Roadside\nAssistance', art: ART.roadside },
       { id: 'ev', label: 'EV\nCharging', art: ART.ev },
       { id: 'used-cars', label: 'Used\nCars', art: ART.usedCars },
       { id: 'dealers', label: 'Car\nDealers', art: ART.dealers },
@@ -182,9 +181,8 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     color: ink.muted,
   },
+  // No box behind the art — the illustration sits straight on the white card.
   washPanel: {
-    borderRadius: 14,
-    backgroundColor: '#EEF3FB',
     alignItems: 'center',
     justifyContent: 'flex-end',
     paddingBottom: 8,
@@ -194,8 +192,8 @@ const styles = StyleSheet.create({
   },
   small: {
     ...card,
-    height: 104,
-    padding: 14,
+    padding: 12,
+    paddingTop: 14,
     overflow: 'hidden',
   },
   smallTitle: {
@@ -210,10 +208,12 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: ink.muted,
   },
-  smallArt: {
-    position: 'absolute',
-    right: 10,
-    bottom: 6,
+  // Art straight on the white card, like the wash card.
+  smallPanel: {
+    height: 76,
+    marginTop: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   panel: {
     ...card,

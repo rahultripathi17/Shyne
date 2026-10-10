@@ -39,7 +39,7 @@ const MENU: { key: string; label: string; icon: IconName }[] = [
   { key: 'settings', label: 'Account Settings', icon: 'settings-outline' },
 ];
 
-/** "+91 84088 54626" → "+91 - 84088 54626", as Swiggy shows it. */
+/** "+91 86687 15479" → "+91 - 86687 15479", as Swiggy shows it. */
 const displayPhone = (phone: string) => phone.replace(/^\+91\s?/, '+91 - ');
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -86,22 +86,22 @@ export default function ProfileScreen() {
 
           <Pressable
             onPress={() => router.push('/edit-profile')}
-            style={[styles.identity, hasLinkedEmail ? styles.identityInline : styles.identityCentered]}
+            style={styles.identity}
             accessibilityRole="button"
             accessibilityLabel="View profile details"
           >
-            <View style={[styles.avatar, !hasLinkedEmail && styles.avatarLarge, member ? styles.avatarDark : styles.avatarLight]}>
+            <View style={[styles.avatar, member ? styles.avatarDark : styles.avatarLight]}>
               {photoUri && photoUri !== failedPhotoUri ? (
                 <Image source={{ uri: photoUri }} style={styles.avatarImage} resizeMode="cover" onError={() => setFailedPhotoUri(photoUri)} />
               ) : (
                 <Image source={PROFILE_AVATAR} style={styles.avatarImage} resizeMode="cover" />
               )}
             </View>
-            <View style={[styles.identityCopy, !hasLinkedEmail && styles.identityCopyCentered]}>
-              <Text style={[styles.name, !hasLinkedEmail && styles.textCentered, { color: fg }]}>
+            <View style={styles.identityCopy}>
+              <Text style={[styles.name, { color: fg }]}>
                 {name || 'Rahul Tripathi'}
               </Text>
-              {phone ? <Text style={[styles.contact, !hasLinkedEmail && styles.textCentered, { color: fgSoft }]}>{displayPhone(phone)}</Text> : null}
+              {phone ? <Text style={[styles.contact, { color: fgSoft }]}>{displayPhone(phone)}</Text> : null}
               {hasLinkedEmail && <Text style={[styles.email, { color: fgSoft }]}>{email?.replace('@', '@\u200B')}</Text>}
             </View>
           </Pressable>
@@ -267,28 +267,15 @@ const styles = StyleSheet.create({
   },
   identity: {
     marginTop: 10,
-  },
-  identityInline: {
     minHeight: 120,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingRight: 50,
   },
-  identityCentered: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 44,
-  },
   identityCopy: {
     flex: 1,
     minWidth: 0,
-  },
-  identityCopyCentered: {
-    flex: 0,
-    width: '100%',
-    alignItems: 'center',
   },
   avatar: {
     width: 66,
@@ -298,11 +285,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     overflow: 'hidden',
-  },
-  avatarLarge: {
-    width: 78,
-    height: 78,
-    borderRadius: 39,
   },
   avatarLight: {
     backgroundColor: '#E9EDF1',
@@ -315,7 +297,7 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 39,
+    borderRadius: 33,
   },
   name: {
     flexShrink: 1,
@@ -323,9 +305,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 27,
     letterSpacing: -0.6,
-  },
-  textCentered: {
-    textAlign: 'center',
   },
   contact: {
     marginTop: 3,

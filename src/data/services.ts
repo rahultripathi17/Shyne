@@ -151,7 +151,7 @@ export const MORE_SERVICES: { id: string; name: string; icon: IconName }[] = [
   { id: 'fastag', name: 'FASTag', icon: 'card' },
   { id: 'challan', name: 'Challan check', icon: 'document-text' },
   { id: 'insurance', name: 'Insurance', icon: 'shield-half' },
-  { id: 'accessories', name: 'Accessories', icon: 'cart' },
+  { id: 'accessories', name: 'Products & Accessories', icon: 'cart' },
 ];
 
 export const getService = (id: string) => SERVICES.find((s) => s.id === id);

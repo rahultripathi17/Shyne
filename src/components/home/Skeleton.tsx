@@ -53,8 +53,8 @@ export function HomeSkeleton({ width }: { width: number }) {
       <View style={{ gap: 12 }}>
         <Bone style={{ width, height: 112, borderRadius: 20 }} />
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Bone style={{ width: half, height: 96, borderRadius: 20 }} />
-          <Bone style={{ width: half, height: 96, borderRadius: 20 }} />
+          <Bone style={{ width: half, height: 146, borderRadius: 20 }} />
+          <Bone style={{ width: half, height: 146, borderRadius: 20 }} />
         </View>
         {[0, 1, 2].map((g) => (
           <View key={g} style={styles.group}>
