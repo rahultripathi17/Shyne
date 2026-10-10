@@ -11,7 +11,7 @@ import { ActionFooter, PrimaryButton } from '../../components/Buttons';
 import { OnboardingHeader } from '../../components/onboarding/OnboardingHeader';
 import { SsoButton } from '../../components/SsoButton';
 import { fonts } from '../../components/theme';
-import { signInWith, SSO_PROVIDER, ssoErrorMessage } from '../../lib/sso';
+import { signInWith, SSO_PROVIDERS, type SsoProvider, ssoErrorMessage } from '../../lib/sso';
 import { useAppStore } from '../../store/AppStore';
 
 const LENGTH = 4;
@@ -48,9 +48,9 @@ export default function OtpScreen() {
   };
 
   const [ssoError, setSsoError] = useState('');
-  const sso = async () => {
+  const sso = async (provider: SsoProvider) => {
     setSsoError('');
-    const result = await signInWith(SSO_PROVIDER);
+    const result = await signInWith(provider);
     if (!result.ok) {
       setSsoError(ssoErrorMessage(result.reason));
       return;
@@ -59,7 +59,7 @@ export default function OtpScreen() {
     setProfile({
       ...(result.name ? { name: result.name } : {}),
       ...(result.email ? { email: result.email } : {}),
-      linked: { [SSO_PROVIDER]: true },
+      linked: { [provider]: true },
     });
     router.push('/onboarding/location');
   };
@@ -138,7 +138,9 @@ export default function OtpScreen() {
               <Text style={styles.orText}>or</Text>
               <View style={styles.orLine} />
             </View>
-            <SsoButton provider={SSO_PROVIDER} onPress={sso} />
+            {SSO_PROVIDERS.map((provider) => (
+              <SsoButton key={provider} provider={provider} onPress={() => void sso(provider)} />
+            ))}
             {ssoError ? <Text style={styles.ssoError}>{ssoError}</Text> : null}
           </FadeIn>
         )}

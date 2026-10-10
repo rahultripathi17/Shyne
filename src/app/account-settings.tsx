@@ -1,5 +1,4 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { type ComponentProps, Fragment, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -9,7 +8,6 @@ import { ink } from '../components/home/homeTheme';
 import { fonts, noBounce } from '../components/theme';
 import { Toast, useToast } from '../components/Toast';
 import { TopBar } from '../components/TopBar';
-import { signInWith, SSO_LABEL, SSO_PROVIDER, ssoErrorMessage } from '../lib/sso';
 import { useAppStore } from '../store/AppStore';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -18,27 +16,10 @@ type Row = { key: string; label: string; icon: IconName; value?: string; danger?
 /** Account Settings — sign-in, privacy, about & legal, and account actions in one place. */
 export default function AccountSettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { phone, name, email, linked, setProfile, signOut } = useAppStore();
+  const { phone, linked, signOut } = useAppStore();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const toast = useToast();
-  const isLinked = !!linked?.[SSO_PROVIDER];
-
-  const connect = async () => {
-    if (isLinked) return;
-    const result = await signInWith(SSO_PROVIDER);
-    if (!result.ok) {
-      const msg = ssoErrorMessage(result.reason);
-      if (msg) toast.show(msg);
-      return;
-    }
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setProfile({
-      linked: { ...linked, [SSO_PROVIDER]: true },
-      ...(!name && result.name ? { name: result.name } : {}),
-      ...(!email && result.email ? { email: result.email } : {}),
-    });
-    toast.show(`${SSO_LABEL[SSO_PROVIDER]} account connected`);
-  };
+  const connectedProviders = [linked?.google && 'Google', linked?.apple && 'Apple'].filter(Boolean);
 
   const sections: { title: string; rows: Row[] }[] = [
     {
@@ -46,10 +27,10 @@ export default function AccountSettingsScreen() {
       rows: [
         { key: 'phone', label: 'Mobile number', icon: 'call-outline', value: phone || '—' },
         {
-          key: 'sso',
-          label: `${SSO_LABEL[SSO_PROVIDER]} account`,
-          icon: SSO_PROVIDER === 'apple' ? 'logo-apple' : 'logo-google',
-          value: isLinked ? 'Connected' : 'Connect',
+          key: 'sign-in-methods',
+          label: 'Sign-in methods',
+          icon: 'key-outline',
+          value: connectedProviders.length ? connectedProviders.join(', ') : 'Set up',
         },
       ],
     },
@@ -71,7 +52,7 @@ export default function AccountSettingsScreen() {
   ];
 
   const onRow = (key: string, label: string) => {
-    if (key === 'sso') void connect();
+    if (key === 'sign-in-methods') router.push('/edit-profile');
     else if (key === 'tracking' || key === 'location') void Linking.openSettings();
     else if (key !== 'phone') toast.show(`${label} — coming soon`);
   };
@@ -99,8 +80,8 @@ export default function AccountSettingsScreen() {
                       <Text
                         style={[
                           styles.value,
-                          r.key === 'sso' && !isLinked && styles.valueAction,
-                          r.key === 'sso' && isLinked && styles.valueOk,
+                          r.key === 'sign-in-methods' && !connectedProviders.length && styles.valueAction,
+                          r.key === 'sign-in-methods' && !!connectedProviders.length && styles.valueOk,
                         ]}
                       >
                         {r.value}

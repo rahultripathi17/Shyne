@@ -23,12 +23,11 @@ import { SsoButton } from '../components/SsoButton';
 import { fonts, noBounce } from '../components/theme';
 import { Toast, useToast } from '../components/Toast';
 import { TopBar } from '../components/TopBar';
-import { signInWith, SSO_LABEL, SSO_PROVIDER, ssoErrorMessage } from '../lib/sso';
+import { signInWith, SSO_LABEL, ssoErrorMessage, type SsoProvider } from '../lib/sso';
 import { type Gender, useAppStore } from '../store/AppStore';
 
 const GENDERS: Gender[] = ['Male', 'Female', 'Other', 'Prefer not to say'];
-
-const isEmail = (v: string) => v === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+const PROFILE_AVATAR = require('../../assets/profile/siddharth-jain.webp');
 
 /** Types "12081995" as "12/08/1995". */
 const formatDob = (v: string) => {
@@ -48,14 +47,6 @@ const isDob = (v: string) => {
   return age >= 16 && age <= 100;
 };
 
-const initialsOf = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join('');
-
 export default function EditProfileScreen() {
   const insets = useSafeAreaInsets();
   const store = useAppStore();
@@ -63,24 +54,25 @@ export default function EditProfileScreen() {
   const toast = useToast();
 
   const [name, setName] = useState(store.name ?? '');
-  const [email, setEmail] = useState(store.email ?? '');
   const [gender, setGender] = useState<Gender | undefined>(store.gender);
   const [dob, setDob] = useState(store.dob ?? '');
   const [photoUri, setPhotoUri] = useState(store.photoUri);
+  const [failedPhotoUri, setFailedPhotoUri] = useState<string>();
+  const [changingAccount, setChangingAccount] = useState(false);
   const [focus, setFocus] = useState<string>();
-  const isLinked = !!linked?.[SSO_PROVIDER];
+  const selectedProvider: SsoProvider | undefined = linked?.apple ? 'apple' : linked?.google ? 'google' : undefined;
 
   const trimmedName = name.trim();
-  const trimmedEmail = email.trim();
-  const emailOk = isEmail(trimmedEmail);
+  const nameParts = trimmedName.toLowerCase().split(/\s+/).filter(Boolean);
+  const sampleLocalPart = [nameParts[0], nameParts.length > 1 ? nameParts[nameParts.length - 1] : undefined].filter(Boolean).join('.') || 'hoora.user';
+  const linkedEmail = store.email || `${sampleLocalPart}@${selectedProvider === 'apple' ? 'icloud.com' : 'gmail.com'}`;
   const dobOk = isDob(dob);
   const changed =
     trimmedName !== (store.name ?? '') ||
-    trimmedEmail !== (store.email ?? '') ||
     gender !== store.gender ||
     dob !== (store.dob ?? '') ||
     photoUri !== store.photoUri;
-  const canSave = trimmedName.length > 1 && emailOk && dobOk && changed;
+  const canSave = trimmedName.length > 1 && dobOk && changed;
 
   const pickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -92,18 +84,17 @@ export default function EditProfileScreen() {
     if (!result.canceled && result.assets[0]) setPhotoUri(result.assets[0].uri);
   };
 
-  const connect = async () => {
-    const result = await signInWith(SSO_PROVIDER);
+  const connect = async (provider: SsoProvider) => {
+    const result = await signInWith(provider);
     if (!result.ok) {
       const msg = ssoErrorMessage(result.reason);
       if (msg) toast.show(msg);
       return;
     }
-    // Fill empty fields from the account the user just connected.
     if (!trimmedName && result.name) setName(result.name);
-    if (!trimmedEmail && result.email) setEmail(result.email);
-    setProfile({ linked: { ...linked, [SSO_PROVIDER]: true } });
-    toast.show(`${SSO_LABEL[SSO_PROVIDER]} account connected`);
+    setProfile({ linked: { [provider]: true }, email: result.email });
+    setChangingAccount(false);
+    toast.show(`${SSO_LABEL[provider]} account connected`);
   };
 
   const save = () => {
@@ -111,7 +102,6 @@ export default function EditProfileScreen() {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setProfile({
       name: trimmedName,
-      email: trimmedEmail || undefined,
       gender,
       dob: dob || undefined,
       photoUri,
@@ -128,19 +118,17 @@ export default function EditProfileScreen() {
         {/* Photo */}
         <Pressable onPress={pickPhoto} style={styles.photoWrap} accessibilityRole="button" accessibilityLabel="Change profile photo">
           <View style={styles.photo}>
-            {photoUri ? (
-              <Image source={{ uri: photoUri }} style={styles.photoImg} />
-            ) : trimmedName ? (
-              <Text style={styles.photoInitials}>{initialsOf(trimmedName)}</Text>
+            {photoUri && photoUri !== failedPhotoUri ? (
+              <Image source={{ uri: photoUri }} style={styles.photoImg} onError={() => setFailedPhotoUri(photoUri)} />
             ) : (
-              <Ionicons name="person" size={40} color={ink.text} />
+              <Image source={PROFILE_AVATAR} style={styles.photoImg} />
             )}
           </View>
           <View style={styles.camera}>
             <Ionicons name="camera" size={16} color={ink.text} />
           </View>
         </Pressable>
-        <Text style={styles.photoHint}>{photoUri ? 'Tap to change photo' : 'Add a profile photo'}</Text>
+        <Text style={styles.photoHint}>{photoUri ? 'Tap to change photo' : 'Tap to add your photo'}</Text>
 
         <Text style={styles.label}>Full name</Text>
         <TextInput
@@ -165,21 +153,34 @@ export default function EditProfileScreen() {
           </View>
         </View>
 
-        <Text style={styles.label}>Email address</Text>
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          onFocus={() => setFocus('email')}
-          onBlur={() => setFocus(undefined)}
-          placeholder="you@example.com"
-          placeholderTextColor={ink.faint}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          textContentType="emailAddress"
-          autoComplete="email"
-          style={[input('email'), !emailOk && styles.inputError]}
-        />
-        {!emailOk && <Text style={styles.error}>Please enter a valid email.</Text>}
+        <Text style={styles.label}>Email & sign-in</Text>
+        <View style={styles.accountCard}>
+          {selectedProvider ? (
+            <View style={styles.accountRow}>
+              <View style={styles.accountMark}>
+                <Ionicons name={selectedProvider === 'apple' ? 'logo-apple' : 'logo-google'} size={22} color={ink.text} />
+              </View>
+              <View style={styles.accountCopy}>
+                <Text style={styles.accountProvider}>{SSO_LABEL[selectedProvider]}</Text>
+                <Text style={styles.accountEmail}>{linkedEmail}</Text>
+              </View>
+              <Pressable onPress={() => setChangingAccount((value) => !value)} style={styles.changeAccount} accessibilityRole="button" accessibilityLabel="Change sign-in account">
+                <Text style={styles.changeAccountText}>{changingAccount ? 'Cancel' : 'Change'}</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.accountTitle}>Connect an account</Text>
+              <Text style={styles.accountDescription}>Choose how you’d like to sign in.</Text>
+            </>
+          )}
+          {(!selectedProvider || changingAccount) && (
+            <View style={[styles.accountOptions, !!selectedProvider && styles.accountOptionsSeparated]}>
+              <SsoButton provider="google" onPress={() => void connect('google')} />
+              {Platform.OS === 'ios' && <SsoButton provider="apple" onPress={() => void connect('apple')} />}
+            </View>
+          )}
+        </View>
 
         <Text style={styles.label}>Gender</Text>
         <View style={styles.chips}>
@@ -215,23 +216,6 @@ export default function EditProfileScreen() {
           style={[input('dob'), !dobOk && dob.length === 10 && styles.inputError]}
         />
         {!dobOk && dob.length === 10 && <Text style={styles.error}>Please enter a real date of birth.</Text>}
-
-        {/* Connected sign-in */}
-        <Text style={styles.label}>Connected account</Text>
-        {isLinked ? (
-          <View style={[styles.input, styles.locked]}>
-            <Text style={styles.lockedText}>{SSO_LABEL[SSO_PROVIDER]}</Text>
-            <View style={styles.verified}>
-              <Ionicons name="checkmark-circle" size={15} color="#1E8E4E" />
-              <Text style={styles.verifiedText}>Connected</Text>
-            </View>
-          </View>
-        ) : (
-          <>
-            <SsoButton provider={SSO_PROVIDER} verb="Connect" onPress={connect} />
-            <Text style={styles.hint}>Log in with {SSO_LABEL[SSO_PROVIDER]} if an OTP ever doesn’t arrive.</Text>
-          </>
-        )}
 
         {/* Test switch until payments exist */}
         <View style={styles.test}>
@@ -282,11 +266,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  photoInitials: {
-    fontFamily: fonts.extraBold,
-    fontSize: 32,
-    color: ink.text,
-  },
   camera: {
     position: 'absolute',
     right: -2,
@@ -336,11 +315,75 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: ink.red,
   },
-  hint: {
-    marginTop: 8,
+  accountCard: {
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: ink.line,
+    backgroundColor: '#FAFAFB',
+  },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  accountMark: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: ink.line,
+  },
+  accountCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  accountProvider: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: ink.text,
+  },
+  accountEmail: {
+    marginTop: 2,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    lineHeight: 17,
+    color: ink.muted,
+  },
+  changeAccount: {
+    minHeight: 36,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  changeAccountText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: ink.text,
+    textDecorationLine: 'underline',
+  },
+  accountTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    color: ink.text,
+  },
+  accountDescription: {
+    marginTop: 3,
     fontFamily: fonts.medium,
     fontSize: 12,
     color: ink.muted,
+  },
+  accountOptions: {
+    gap: 8,
+    marginTop: 12,
+  },
+  accountOptionsSeparated: {
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: ink.line,
   },
   locked: {
     flexDirection: 'row',

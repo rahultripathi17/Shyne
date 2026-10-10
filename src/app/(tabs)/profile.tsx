@@ -10,25 +10,20 @@ import { SvgXml } from 'react-native-svg';
 import { ink } from '../../components/home/homeTheme';
 import { PressableScale } from '../../components/home/motion';
 import { HOORA_LOGO_XML } from '../../components/hooraLogoXml';
-import { SsoButton } from '../../components/SsoButton';
 import { useTabBarSpace } from '../../components/tabBarSpace';
 import { fonts, noBounce } from '../../components/theme';
 import { Toast, useToast } from '../../components/Toast';
 import { VehicleSheet } from '../../components/VehicleSheet';
-import { signInWith, SSO_LABEL, SSO_PROVIDER, ssoErrorMessage } from '../../lib/sso';
 import { useAppStore } from '../../store/AppStore';
 
-// Profile — Swiggy-style account header (yellow for everyone, black for Hoora Black members),
-// the Hoora Black card right under it, then quick links and one clean list. Bookings and Rewards
-// live in the tab bar, so they are not repeated here.
+// Profile header, compact membership status, quick links, and account menu.
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
 const BLACK = {
-  icon: require('../../../assets/profile/black-icon.png'),
-  wordmark: require('../../../assets/profile/black-wordmark.png'),
   pattern: require('../../../assets/profile/card-pattern.png'),
 };
+const PROFILE_AVATAR = require('../../../assets/profile/siddharth-jain.webp');
 
 const BLACK_PRICE = 499;
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
@@ -46,16 +41,16 @@ const MENU: { key: string; label: string; icon: IconName }[] = [
 
 /** "+91 84088 54626" → "+91 - 84088 54626", as Swiggy shows it. */
 const displayPhone = (phone: string) => phone.replace(/^\+91\s?/, '+91 - ');
-
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const bottomSpace = useTabBarSpace();
-  const { name, email, phone, blackMember, linked, setProfile, signOut } = useAppStore();
+  const { name, phone, photoUri, blackMember, linked, signOut } = useAppStore();
   const [vehiclesOpen, setVehiclesOpen] = useState(false);
+  const [failedPhotoUri, setFailedPhotoUri] = useState<string>();
   const toast = useToast();
   const soon = (what: string) => toast.show(`${what} — coming soon`);
   const member = !!blackMember;
-  const isLinked = !!linked?.[SSO_PROVIDER];
+  const isLinked = !!linked?.apple || !!linked?.google;
 
   useFocusEffect(
     useCallback(() => {
@@ -66,21 +61,6 @@ export default function ProfileScreen() {
   const onMenu = (key: string, label: string) => {
     if (key === 'settings') router.push('/account-settings');
     else soon(label);
-  };
-
-  const connect = async () => {
-    const result = await signInWith(SSO_PROVIDER);
-    if (!result.ok) {
-      const msg = ssoErrorMessage(result.reason);
-      if (msg) toast.show(msg);
-      return;
-    }
-    setProfile({
-      linked: { ...linked, [SSO_PROVIDER]: true },
-      ...(!name && result.name ? { name: result.name } : {}),
-      ...(!email && result.email ? { email: result.email } : {}),
-    });
-    toast.show(`${SSO_LABEL[SSO_PROVIDER]} account connected`);
   };
 
   const fg = member ? '#FFFFFF' : ink.text;
@@ -95,83 +75,65 @@ export default function ProfileScreen() {
         contentContainerStyle={{ paddingBottom: bottomSpace }}
       >
         {/* Header */}
-        <View style={[styles.header, member ? styles.headerBlack : styles.headerYellow, { paddingTop: insets.top + 10 }]}>
+        <View style={[styles.header, member ? styles.headerBlack : styles.headerYellow, { paddingTop: insets.top + 18 }]}>
           {member && <Image source={BLACK.pattern} resizeMode="cover" style={styles.headerPattern} />}
-          <View style={styles.watermark} pointerEvents="none">
-            <SvgXml
-              xml={markXml(member ? '#FFE300' : '#000000')}
-              width={210 * MARK_RATIO}
-              height={210}
-              opacity={member ? 0.08 : 0.06}
-            />
-          </View>
-
-          <View style={styles.topRow}>
-            <Pressable
-              onPress={() => router.push('/edit-profile')}
-              style={[styles.iconBtn, member ? styles.pillDark : styles.pillLight]}
-              accessibilityRole="button"
-              accessibilityLabel="Edit profile"
-            >
-              <Ionicons name="create-outline" size={18} color={fg} />
-            </Pressable>
-          </View>
+          {member && (
+            <View style={styles.watermark} pointerEvents="none">
+              <SvgXml xml={markXml('#FFE300')} width={210 * MARK_RATIO} height={210} opacity={0.08} />
+            </View>
+          )}
 
           <Pressable onPress={() => router.push('/edit-profile')} style={styles.identity} accessibilityRole="button" accessibilityLabel="Edit profile">
-            <View style={{ flex: 1 }}>
-              <View style={styles.nameRow}>
-                <Text style={[styles.name, { color: fg }]} numberOfLines={1}>
-                  {name || 'Add your name'}
-                </Text>
-                {member && (
-                  <View style={styles.memberChip}>
-                    <Text style={styles.memberChipText}>BLACK</Text>
-                  </View>
-                )}
-              </View>
-              {phone ? <Text style={[styles.contact, { color: fgSoft }]}>{displayPhone(phone)}</Text> : null}
-              {email ? (
-                <Text style={[styles.contact, { color: fgSoft }]} numberOfLines={1}>
-                  {email}
-                </Text>
+            <View style={[styles.avatar, member ? styles.avatarDark : styles.avatarLight]}>
+              {photoUri && photoUri !== failedPhotoUri ? (
+                <Image source={{ uri: photoUri }} style={styles.avatarImage} resizeMode="cover" onError={() => setFailedPhotoUri(photoUri)} />
               ) : (
-                <Text style={[styles.addLink, { color: fg }]}>Add email & details ›</Text>
+                <Image source={PROFILE_AVATAR} style={styles.avatarImage} resizeMode="cover" />
               )}
+              <View style={styles.avatarEdit}>
+                <Ionicons name="camera" size={12} color={ink.text} />
+              </View>
+            </View>
+            <View style={styles.identityCopy}>
+              <Text style={[styles.name, { color: fg }]}>
+                {name || 'Add your name'}
+              </Text>
+              {phone ? <Text style={[styles.contact, { color: fgSoft }]}>{displayPhone(phone)}</Text> : null}
+            </View>
+            <View style={[styles.editAction, member ? styles.editActionDark : styles.editActionLight]}>
+              <Ionicons name="create-outline" size={17} color={fg} />
             </View>
           </Pressable>
         </View>
 
         <View style={styles.body}>
-          {/* Hoora Black — like Swiggy One: white card, logo, one line of value, one action */}
+          {/* Compact membership entry point for guests and active members. */}
           <PressableScale
             onPress={() => soon(member ? 'Hoora Black benefits' : 'Hoora Black')}
             scaleTo={0.98}
             style={styles.black}
             accessibilityLabel={member ? 'Hoora Black benefits' : `Join Hoora Black for ₹${BLACK_PRICE}`}
           >
-            <View style={styles.blackTop}>
-              <View style={styles.blackLogo}>
-                <Image source={BLACK.icon} style={styles.blackIcon} />
-                <Image source={BLACK.wordmark} style={styles.blackWordmark} />
+            <View style={styles.blackRow}>
+              <View style={styles.blackIcon}>
+                <SvgXml xml={HOORA_LOGO_XML} width={30 * MARK_RATIO} height={30} />
               </View>
-              {member && (
+              <View style={styles.blackCopy}>
+                <Text style={styles.blackTitle} numberOfLines={1}>Hoora Black</Text>
+                <Text style={styles.blackSub} numberOfLines={1}>
+                  {member ? 'Explore your benefits' : 'Save up to 40% on services'}
+                </Text>
+              </View>
+              {member ? (
                 <View style={styles.activeChip}>
                   <Text style={styles.activeText}>ACTIVE</Text>
                 </View>
-              )}
-              <View style={{ flex: 1 }} />
-              {member ? (
-                <Ionicons name="chevron-forward" size={18} color={ink.muted} />
               ) : (
                 <View style={styles.joinPill}>
                   <Text style={styles.joinText}>Join ₹{BLACK_PRICE}</Text>
                 </View>
               )}
             </View>
-            <Text style={styles.blackTitle}>{member ? '₹0 saved so far' : 'Save up to 40% on every service'}</Text>
-            <Text style={styles.blackSub}>
-              {member ? 'Explore all Hoora Black benefits' : 'One membership for all your car & bike care'}
-            </Text>
           </PressableScale>
 
           {/* Quick links */}
@@ -202,15 +164,17 @@ export default function ProfileScreen() {
             ))}
           </View>
 
-          {/* One-tap sign-in, so a missing OTP never locks anyone out */}
           {!isLinked && (
-            <View style={styles.link}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.linkTitle}>Sign in without OTP</Text>
-                <Text style={styles.linkSub}>Connect {SSO_LABEL[SSO_PROVIDER]} for faster, safer login</Text>
+            <Pressable onPress={() => router.push('/edit-profile')} style={styles.link} accessibilityRole="button" accessibilityLabel="Connect an account">
+              <View style={styles.linkIcon}>
+                <Ionicons name="shield-checkmark-outline" size={20} color={ink.text} />
               </View>
-              <SsoButton provider={SSO_PROVIDER} verb="Connect" onPress={connect} compact />
-            </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.linkTitle}>Connect your account</Text>
+                <Text style={styles.linkSub}>Choose a sign-in method</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={ink.faint} />
+            </Pressable>
           )}
 
           {/* Menu */}
@@ -265,13 +229,13 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 18,
-    paddingBottom: 54,
+    paddingBottom: 50,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     overflow: 'hidden',
   },
   headerYellow: {
-    backgroundColor: ink.yellow,
+    backgroundColor: '#FFF9E9',
   },
   headerBlack: {
     backgroundColor: '#0D0D0E',
@@ -292,72 +256,87 @@ const styles = StyleSheet.create({
     height: 210,
     overflow: 'hidden',
   },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: 8,
-  },
-  pillLight: {
-    backgroundColor: 'rgba(255,255,255,0.55)',
-  },
-  pillDark: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   identity: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    marginTop: 18,
+    gap: 10,
+    marginTop: 10,
   },
-  nameRow: {
-    flexDirection: 'row',
+  identityCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  avatar: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    borderWidth: 2,
+  },
+  avatarLight: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
+  },
+  avatarDark: {
+    backgroundColor: '#FFE300',
+    borderColor: 'rgba(255,255,255,0.8)',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 31,
+  },
+  avatarEdit: {
+    position: 'absolute',
+    right: -3,
+    bottom: -3,
+    width: 23,
+    height: 23,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    backgroundColor: ink.yellow,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   name: {
     flexShrink: 1,
     fontFamily: fonts.extraBold,
-    fontSize: 26,
+    fontSize: 22,
+    lineHeight: 27,
     letterSpacing: -0.6,
-  },
-  memberChip: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 5,
-    backgroundColor: ink.yellow,
-  },
-  memberChipText: {
-    fontFamily: fonts.extraBold,
-    fontSize: 10,
-    letterSpacing: 1,
-    color: ink.text,
   },
   contact: {
     marginTop: 3,
     fontFamily: fonts.medium,
     fontSize: 14,
+    lineHeight: 20,
   },
-  addLink: {
-    marginTop: 6,
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    textDecorationLine: 'underline',
+  editAction: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  editActionLight: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E9DEC5',
+  },
+  editActionDark: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(255,255,255,0.18)',
   },
   body: {
     marginTop: -34,
     paddingHorizontal: 16,
   },
   black: {
-    padding: 16,
-    borderRadius: 18,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    borderRadius: 15,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#F1DFA2',
@@ -367,27 +346,20 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
-  blackTop: {
+  blackRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  blackLogo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#0D0D0E',
+    gap: 10,
   },
   blackIcon: {
-    width: 16,
-    height: 16,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    overflow: 'hidden',
   },
-  blackWordmark: {
-    width: 105,
-    height: 10,
+  blackCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   activeChip: {
     paddingHorizontal: 7,
@@ -402,27 +374,26 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   joinPill: {
-    height: 32,
-    paddingHorizontal: 14,
-    borderRadius: 16,
+    height: 30,
+    paddingHorizontal: 10,
+    borderRadius: 15,
     backgroundColor: ink.yellow,
     justifyContent: 'center',
   },
   joinText: {
     fontFamily: fonts.extraBold,
-    fontSize: 13,
+    fontSize: 11,
     color: ink.text,
   },
   blackTitle: {
-    marginTop: 12,
-    fontFamily: fonts.extraBold,
-    fontSize: 17,
+    fontFamily: fonts.bold,
+    fontSize: 14,
     color: ink.text,
   },
   blackSub: {
-    marginTop: 2,
+    marginTop: 1,
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: 11,
     color: ink.muted,
   },
   quickRow: {
@@ -466,6 +437,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: ink.line,
+  },
+  linkIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#FFF6C2',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   linkTitle: {
     fontFamily: fonts.bold,
