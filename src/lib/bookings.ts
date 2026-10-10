@@ -15,16 +15,13 @@ export const TONES: Record<Tone, { bg: string; fg: string }> = {
   closed: { bg: '#F1F2F4', fg: '#5F636B' }, // cancelled / expired
 };
 
-/** What the date box is about, written above the date so it reads at a glance. */
-export const WHEN_CAPTION: Record<BookingItem['when']['icon'], string> = {
-  calendar: 'Scheduled for',
-  truck: 'Delivery',
-  receipt: 'Date',
-  pickup: 'Pickup',
+/** "Today, 11 Oct" for today, otherwise "Mon, 12 Oct". */
+const fmtDate = (iso: string) => {
+  const date = new Date(`${iso}T00:00:00`);
+  const dayMonth = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  const isToday = iso === new Date().toISOString().slice(0, 10);
+  return `${isToday ? 'Today' : date.toLocaleDateString('en-IN', { weekday: 'short' })}, ${dayMonth}`;
 };
-
-const fmtDate = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 
 /** Wash bookings made in the app, shown the same way as the rest. */
 function fromStore(b: Booking): BookingItem {

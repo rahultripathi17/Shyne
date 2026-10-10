@@ -14,7 +14,7 @@ import { useTabBarSpace } from '../../components/tabBarSpace';
 import { fonts, formatPrice, noBounce } from '../../components/theme';
 import { Toast, useToast } from '../../components/Toast';
 import { type BookingItem, type Tone, type VerticalKey, VERTICALS } from '../../data/bookingsDemo';
-import { opensDetails, TONES, useAllBookings, WHEN_CAPTION } from '../../lib/bookings';
+import { opensDetails, TONES, useAllBookings } from '../../lib/bookings';
 
 // My Bookings — pick a vertical on top, then Upcoming or History. Every card reads the same way:
 // the service, the vehicle and its type; when & where (tap it for the journey); then the price and
@@ -25,7 +25,7 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 const WHEN_ICON: Record<BookingItem['when']['icon'], IconName> = {
   calendar: 'calendar-clear-outline',
   truck: 'cube-outline',
-  receipt: 'document-text-outline',
+  receipt: 'calendar-clear-outline',
   pickup: 'car-outline',
 };
 
@@ -92,19 +92,20 @@ function BookingCard({
         onPress={() => onSchedule(item)}
         style={({ pressed }) => [styles.when, pressed && { backgroundColor: '#EEF0F3' }]}
         accessibilityRole="button"
-        accessibilityLabel={`${WHEN_CAPTION[item.when.icon]} ${item.when.title}. See journey`}
+        accessibilityLabel={`${item.when.title}, ${item.when.sub}. See journey`}
       >
-        <View style={styles.whenIcon}>
-          <Ionicons name={WHEN_ICON[item.when.icon]} size={17} color={ink.text} />
+        <View style={styles.whenLine}>
+          <Ionicons name={WHEN_ICON[item.when.icon]} size={16} color={ink.text} />
+          <Text style={styles.whenTitle} numberOfLines={1}>
+            {item.when.title}
+          </Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.whenCaption}>{WHEN_CAPTION[item.when.icon]}</Text>
-          <Text style={styles.whenTitle}>{item.when.title}</Text>
+        <View style={styles.whenLine}>
+          <Ionicons name={item.subIsNote ? 'information-circle-outline' : 'location-outline'} size={16} color={ink.muted} />
           <Text style={styles.whenSub} numberOfLines={1}>
             {item.when.sub}
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={16} color={ink.muted} />
       </Pressable>
 
       {item.alert ? (
@@ -466,19 +467,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: ink.muted,
   },
-  whenIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  whenCaption: {
-    fontFamily: fonts.semiBold,
-    fontSize: 11,
-    color: ink.muted,
-  },
   // A plain, quiet button: the card's one action.
   cta: {
     height: 36,
@@ -521,9 +509,7 @@ const styles = StyleSheet.create({
     color: ink.text,
   },
   when: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    gap: 6,
     marginHorizontal: 14,
     marginTop: 14,
     paddingHorizontal: 12,
@@ -531,16 +517,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#F7F8FA',
   },
+  whenLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   whenTitle: {
-    marginTop: 1,
+    flex: 1,
     fontFamily: fonts.bold,
     fontSize: 14,
     color: ink.text,
   },
   whenSub: {
-    marginTop: 1,
+    flex: 1,
     fontFamily: fonts.medium,
-    fontSize: 12,
+    fontSize: 13,
     color: ink.label,
   },
   alert: {

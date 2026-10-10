@@ -4,7 +4,6 @@ import { Animated, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Text
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { type BookingItem, VERTICALS } from '../data/bookingsDemo';
-import { WHEN_CAPTION } from '../lib/bookings';
 import { JourneyTimeline, StatusTag } from './BookingJourney';
 import { ink } from './home/homeTheme';
 import { fonts, noBounce, useAnimatedValue } from './theme';
@@ -91,10 +90,12 @@ export function BookingSheet({ item, onClose, onDetails, onHelp }: Props) {
 
             {/* When & where */}
             <View style={styles.when}>
-              <Text style={styles.whenCaption}>{WHEN_CAPTION[shown.when.icon]}</Text>
-              <Text style={styles.whenTitle}>{shown.when.title}</Text>
               <View style={styles.whenRow}>
-                <Ionicons name="location-outline" size={14} color={ink.muted} />
+                <Ionicons name="calendar-clear-outline" size={17} color={ink.text} />
+                <Text style={styles.whenTitle}>{shown.when.title}</Text>
+              </View>
+              <View style={styles.whenRow}>
+                <Ionicons name={shown.subIsNote ? 'information-circle-outline' : 'location-outline'} size={17} color={ink.muted} />
                 <Text style={styles.whenSub}>{shown.when.sub}</Text>
               </View>
             </View>
@@ -214,27 +215,22 @@ const styles = StyleSheet.create({
     color: ink.label,
   },
   when: {
+    gap: 8,
     marginTop: 14,
     padding: 14,
     borderRadius: 14,
     backgroundColor: '#F7F8FA',
   },
-  whenCaption: {
-    fontFamily: fonts.semiBold,
-    fontSize: 11.5,
-    color: ink.muted,
-  },
   whenTitle: {
-    marginTop: 2,
+    flex: 1,
     fontFamily: fonts.extraBold,
-    fontSize: 17,
+    fontSize: 16,
     color: ink.text,
   },
   whenRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
+    gap: 8,
   },
   whenSub: {
     flex: 1,

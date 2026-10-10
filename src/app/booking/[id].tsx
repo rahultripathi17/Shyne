@@ -11,7 +11,7 @@ import { fonts, formatPrice, noBounce } from '../../components/theme';
 import { Toast, useToast } from '../../components/Toast';
 import { TopBar } from '../../components/TopBar';
 import { journeyFor, journeyStep, VERTICALS } from '../../data/bookingsDemo';
-import { useAllBookings, WHEN_CAPTION } from '../../lib/bookings';
+import { useAllBookings } from '../../lib/bookings';
 
 /** The full booking page: status, schedule, journey, extras, payment, rating and help. */
 export default function BookingDetailsScreen() {
@@ -72,10 +72,12 @@ export default function BookingDetailsScreen() {
 
         {/* When & where */}
         <View style={styles.card}>
-          <Text style={styles.caption}>{WHEN_CAPTION[item.when.icon]}</Text>
-          <Text style={styles.when}>{item.when.title}</Text>
+          <View style={styles.whenRow}>
+            <Ionicons name="calendar-clear-outline" size={18} color={ink.text} />
+            <Text style={styles.when}>{item.when.title}</Text>
+          </View>
           <View style={styles.row}>
-            <Ionicons name="location-outline" size={16} color={ink.muted} />
+            <Ionicons name={item.subIsNote ? 'information-circle-outline' : 'location-outline'} size={18} color={ink.muted} />
             <Text style={styles.rowText}>{item.when.sub}</Text>
           </View>
           {upcoming && (
@@ -266,15 +268,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#C22F2F',
   },
-  caption: {
-    fontFamily: fonts.semiBold,
-    fontSize: 12,
-    color: ink.muted,
+  whenRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   when: {
-    marginTop: 3,
+    flex: 1,
     fontFamily: fonts.extraBold,
-    fontSize: 19,
+    fontSize: 17,
     color: ink.text,
   },
   row: {
