@@ -8,14 +8,14 @@ import { ink } from '../../components/home/homeTheme';
 import { FadeIn } from '../../components/home/motion';
 import { ActionFooter, PrimaryButton, TextButton } from '../../components/Buttons';
 import { OnboardingHeader } from '../../components/onboarding/OnboardingHeader';
-import { OnboardingLead } from '../../components/onboarding/OnboardingLead';
+import { OnboardingTitle } from '../../components/onboarding/OnboardingLead';
 import { fonts, useAnimatedValue } from '../../components/theme';
 import { detectAddress } from '../../lib/location';
 import { useAppStore } from '../../store/AppStore';
 
 const REASONS = [
   { icon: 'home-outline' as const, text: 'Fills in your address automatically' },
-  { icon: 'car-outline' as const, text: 'Our expert reaches your exact spot' },
+  { icon: 'car-outline' as const, text: 'Our expert comes to your doorstep' },
   { icon: 'pricetag-outline' as const, text: 'Shows services and offers near you' },
 ];
 
@@ -51,7 +51,7 @@ function MapArt() {
         ]}
       />
       <View style={styles.pin}>
-        <Ionicons name="location-sharp" size={30} color={ink.yellow} />
+        <Ionicons name="location-sharp" size={28} color={ink.text} />
       </View>
     </View>
   );
@@ -84,9 +84,9 @@ export default function LocationScreen() {
     <View style={styles.screen}>
       <OnboardingHeader title="Location permission" topInset={insets.top} />
       <View style={styles.body}>
-        <OnboardingLead>We use it only while you’re using the app.</OnboardingLead>
+        <OnboardingTitle title="Share your location">We use it only while you’re using the app.</OnboardingTitle>
 
-        <FadeIn delay={80} style={{ marginTop: 22 }}>
+        <FadeIn delay={80} style={{ marginTop: 20 }}>
           <MapArt />
         </FadeIn>
 
@@ -109,7 +109,7 @@ export default function LocationScreen() {
           label="Allow location access"
           onPress={detect}
           loading={busy}
-          icon={<Ionicons name="navigate" size={18} color={ink.text} />}
+          icon={<Ionicons name="navigate" size={18} color="#FFFFFF" />}
         />
         <TextButton label="Enter address manually" onPress={() => router.push('/onboarding/vehicle')} />
       </ActionFooter>
@@ -150,13 +150,15 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: ink.text,
+    backgroundColor: ink.yellow,
   },
   pin: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: ink.text,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    backgroundColor: ink.yellow,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',

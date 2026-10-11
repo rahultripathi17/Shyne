@@ -9,7 +9,7 @@ import { ink } from '../../components/home/homeTheme';
 import { FadeIn, PressableScale } from '../../components/home/motion';
 import { ActionFooter, PrimaryButton } from '../../components/Buttons';
 import { OnboardingHeader } from '../../components/onboarding/OnboardingHeader';
-import { OnboardingLead } from '../../components/onboarding/OnboardingLead';
+import { OnboardingTitle } from '../../components/onboarding/OnboardingLead';
 import { fonts } from '../../components/theme';
 import type { VehicleType } from '../../store/AppStore';
 
@@ -31,7 +31,9 @@ export default function VehicleTypeScreen() {
     <View style={styles.screen}>
       <OnboardingHeader title="Choose your vehicle" topInset={insets.top} />
       <View style={styles.body}>
-        <OnboardingLead>You can add more vehicles later.</OnboardingLead>
+        <OnboardingTitle title="What do you drive?">
+          Pick one to start. You can add more vehicles later.
+        </OnboardingTitle>
 
         <View style={styles.cards}>
           {OPTIONS.map((o, i) => {
@@ -78,7 +80,7 @@ const styles = StyleSheet.create({
   },
   cards: {
     gap: 14,
-    marginTop: 20,
+    marginTop: 24,
   },
   card: {
     flexDirection: 'row',

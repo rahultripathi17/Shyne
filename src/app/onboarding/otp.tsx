@@ -9,6 +9,7 @@ import { ink } from '../../components/home/homeTheme';
 import { FadeIn } from '../../components/home/motion';
 import { ActionFooter, PrimaryButton } from '../../components/Buttons';
 import { OnboardingHeader } from '../../components/onboarding/OnboardingHeader';
+import { OnboardingTitle } from '../../components/onboarding/OnboardingLead';
 import { SsoButton } from '../../components/SsoButton';
 import { fonts } from '../../components/theme';
 import { signInWith, SSO_PROVIDERS, type SsoProvider, ssoErrorMessage } from '../../lib/sso';
@@ -75,10 +76,11 @@ export default function OtpScreen() {
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <OnboardingHeader title="OTP Verification" topInset={insets.top} />
       <View style={styles.body}>
+        <OnboardingTitle title="Enter verification code" />
         <View style={styles.sentRow}>
           {channel === 'whatsapp' && <Ionicons name="logo-whatsapp" size={16} color={WHATSAPP_GREEN} />}
           <Text style={styles.sent}>
-            {channel === 'whatsapp' ? 'Enter the 4-digit code sent on WhatsApp to ' : 'Enter the 4-digit code sent to '}
+            {channel === 'whatsapp' ? 'We’ve sent a 4-digit code on WhatsApp to ' : 'We’ve sent a 4-digit code to '}
             <Text style={styles.phone}>{phone || 'your number'}</Text>
           </Text>
           <Pressable onPress={() => router.back()} hitSlop={8}>
@@ -86,7 +88,11 @@ export default function OtpScreen() {
           </Pressable>
         </View>
 
-        <Pressable onPress={() => inputRef.current?.focus()} style={styles.boxes} accessibilityLabel="Verification code">
+        <Pressable
+          onPress={() => inputRef.current?.focus()}
+          style={styles.boxes}
+          accessibilityLabel="Verification code"
+        >
           {Array.from({ length: LENGTH }, (_, i) => {
             const filled = i < code.length;
             const active = i === code.length;

@@ -8,7 +8,10 @@ type Props = {
   onBack?: () => void;
 };
 
-/** Onboarding top bar: the app-wide standard, back button with the screen title beside it. */
+/**
+ * Onboarding top bar: back button with the step's name, kept quiet — the screen's own big
+ * title (OnboardingTitle) is the main heading.
+ */
 export function OnboardingHeader({ title, topInset, onBack }: Props) {
-  return <TopBar title={title} topInset={topInset} onBack={onBack ?? (() => router.back())} />;
+  return <TopBar title={title} topInset={topInset} onBack={onBack ?? (() => router.back())} subtle />;
 }

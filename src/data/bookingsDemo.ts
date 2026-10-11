@@ -6,12 +6,12 @@ import type { ImageSourcePropType } from 'react-native';
 export type VerticalKey = 'washes' | 'society' | 'products' | 'bundles' | 'challans' | 'garage' | 'qr';
 
 export const VERTICALS: { key: VerticalKey; label: string; image: ImageSourcePropType; explore: string }[] = [
-  { key: 'washes', label: 'Washes', image: require('../../assets/home/v2/wash.png'), explore: 'Book a wash' },
+  { key: 'washes', label: 'Washes', image: require('../../assets/home/v2/wash-icon.png'), explore: 'Book a wash' },
   { key: 'society', label: 'Society Pack', image: require('../../assets/bookings/society.png'), explore: 'View society packs' },
-  { key: 'products', label: 'Products', image: require('../../assets/home/v2/accessories.png'), explore: 'Shop products' },
+  { key: 'products', label: 'Products', image: require('../../assets/home/v2/accessories-icon.png'), explore: 'Shop products' },
   { key: 'bundles', label: 'Bundles', image: require('../../assets/bookings/package.png'), explore: 'View wash packs' },
   { key: 'challans', label: 'Challans', image: require('../../assets/home/challan-check.png'), explore: 'Check challans' },
-  { key: 'garage', label: 'Garage', image: require('../../assets/home/v2/garage.png'), explore: 'Book a service' },
+  { key: 'garage', label: 'Garage', image: require('../../assets/home/v2/garage-icon.png'), explore: 'Book a service' },
   { key: 'qr', label: 'Connect QR', image: require('../../assets/home/connect-qr.png'), explore: 'Get a Connect QR tag' },
 ];
 

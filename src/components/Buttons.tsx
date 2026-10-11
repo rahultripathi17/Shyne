@@ -13,7 +13,7 @@ type PrimaryProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** The one main action style in the app: full-width Hoora yellow. Disabled stays yellow, just faded. */
+/** The one main action style in the app: full-width, solid black and minimal. Disabled turns light grey. */
 export function PrimaryButton({ label, onPress, disabled, icon, loading, style }: PrimaryProps) {
   return (
     <Pressable
@@ -25,7 +25,7 @@ export function PrimaryButton({ label, onPress, disabled, icon, loading, style }
       accessibilityState={{ disabled: !!disabled }}
     >
       {loading ? (
-        <ActivityIndicator color={ink.text} />
+        <ActivityIndicator color="#FFFFFF" />
       ) : (
         <>
           {icon}
@@ -62,12 +62,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     borderRadius: 14,
-    backgroundColor: ink.yellow,
+    backgroundColor: ink.text,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryOff: {
-    backgroundColor: '#FFF5BF',
+    backgroundColor: '#ECEDF0',
   },
   pressed: {
     opacity: 0.88,
@@ -77,10 +77,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.extraBold,
     fontSize: 16,
     letterSpacing: 0.1,
-    color: ink.text,
+    color: '#FFFFFF',
   },
   primaryTextOff: {
-    color: 'rgba(21,22,26,0.35)',
+    color: '#A3A6AE',
   },
   text: {
     height: 44,

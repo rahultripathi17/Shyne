@@ -44,7 +44,9 @@ function MarqueeRow({ items, duration, reverse }: { items: string[]; duration: n
   const span = items.length * (TILE + GAP);
 
   useEffect(() => {
-    const loop = Animated.loop(Animated.timing(t, { toValue: 1, duration, easing: Easing.linear, useNativeDriver: true }));
+    const loop = Animated.loop(
+      Animated.timing(t, { toValue: 1, duration, easing: Easing.linear, useNativeDriver: true }),
+    );
     loop.start();
     return () => loop.stop();
   }, [t, duration]);

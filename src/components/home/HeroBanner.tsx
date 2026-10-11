@@ -1,18 +1,22 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, FlatList, Image, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Easing, FlatList, Image, type ImageSourcePropType, Pressable, StyleSheet, View } from 'react-native';
 
 import { noBounce, useAnimatedValue } from '../theme';
 
-// Figma banner artwork, wash offer first.
-export const BANNERS = [
-  { id: 'wash-99', target: 'wash', source: require('../../../assets/home/banner-3.jpg') },
-  { id: 'servicing', target: 'garage', source: require('../../../assets/home/banner-1.jpg') },
-  { id: 'cashback', target: 'wash', source: require('../../../assets/home/banner-4.jpg') },
-  { id: 'challan', target: 'challan', source: require('../../../assets/home/banner-2.jpg') },
-] as const;
+export type BannerTarget = 'wash' | 'garage' | 'accessories' | 'challan';
 
-export type BannerTarget = (typeof BANNERS)[number]['target'];
+type Banner = { id: string; target: BannerTarget; source: ImageSourcePropType };
+
+// Banners from the Figma library, challan first. Login shows the same set.
+export const BANNERS: Banner[] = [
+  { id: 'challan', target: 'challan', source: require('../../../assets/home/banner-2.jpg') },
+  { id: 'wash', target: 'wash', source: require('../../../assets/home/banner-wash.jpg') },
+  { id: 'servicing', target: 'garage', source: require('../../../assets/home/banner-servicing.jpg') },
+  { id: 'shampoo', target: 'accessories', source: require('../../../assets/home/banner-foam-shampoo.jpg') },
+  { id: 'road', target: 'wash', source: require('../../../assets/home/banner-road.jpg') },
+  { id: 'wash-99', target: 'wash', source: require('../../../assets/home/banner-wash99.jpg') },
+];
 
 const SLIDE_MS = 4500;
 
@@ -70,7 +74,11 @@ export function HeroBanner({ width, height, topFadeHeight, dotsBottom, onPress, 
           setPaused(false);
         }}
         renderItem={({ item }) => (
-          <Pressable onPress={() => onPress(item.target)} accessibilityRole="imagebutton" accessibilityLabel="Hoora offer">
+          <Pressable
+            onPress={() => onPress(item.target)}
+            accessibilityRole="imagebutton"
+            accessibilityLabel="Hoora offer"
+          >
             <Image source={item.source} resizeMode="cover" style={{ width, height }} />
           </Pressable>
         )}

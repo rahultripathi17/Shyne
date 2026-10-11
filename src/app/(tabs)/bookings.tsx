@@ -24,13 +24,12 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 
 // Service pictures for the card: square-padded versions of the wide artwork, so they fill the tile.
 const SERVICE_ART: Partial<Record<VerticalKey, ImageSourcePropType>> = {
-  washes: require('../../../assets/home/v2/wash-square.png'),
-  garage: require('../../../assets/home/v2/garage-square.png'),
-  products: require('../../../assets/home/v2/accessories-square.png'),
+  washes: require('../../../assets/home/v2/wash-icon.png'),
+  garage: require('../../../assets/home/v2/garage-icon.png'),
+  products: require('../../../assets/home/v2/accessories-icon.png'),
 };
 /** Wide pictures look small in a square, so they're drawn a little larger and clipped softly. */
 const WIDE_ART = new Set<ImageSourcePropType>([
-  ...Object.values(SERVICE_ART),
   require('../../../assets/home/challan-check.png'),
   require('../../../assets/home/connect-qr.png'),
 ]);

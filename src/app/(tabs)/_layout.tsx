@@ -8,8 +8,8 @@ import { ink } from '../../components/home/homeTheme';
 const TABS = [
   { name: 'index', title: 'Home', sf: ['house', 'house.fill'] },
   // Outline and filled versions of the same shape, so a tab never changes form when selected.
-  // "Bookings": a booking ticket — outline when idle, filled when selected, like the other tabs.
-  { name: 'bookings', title: 'Bookings', sf: ['ticket', 'ticket.fill'] },
+  // "Bookings": a service job card (clipboard with a checklist) — the sheet a garage opens per booking.
+  { name: 'bookings', title: 'Bookings', sf: ['list.clipboard', 'list.clipboard.fill'] },
   { name: 'rewards', title: 'Rewards', sf: ['gift', 'gift.fill'] },
   { name: 'profile', title: 'Profile', sf: ['person.crop.circle', 'person.crop.circle.fill'] },
 ] as const;

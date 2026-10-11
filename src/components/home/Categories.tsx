@@ -22,51 +22,72 @@ export type CategoryId =
   | 'used-cars'
   | 'dealers';
 
-// ——— Main categories: wash first, then garage and accessories ———
+// ——— Main categories: wash on its own row, then garage and accessories side by side ———
 
 export function MainCategories({ width, onPress }: { width: number; onPress: (id: CategoryId) => void }) {
-  const gap = SPACE;
+  const gap = 12;
   const halfW = (width - gap) / 2;
-  const panelW = Math.round(width * 0.4);
+  const washArtW = Math.round(width * 0.44);
 
   return (
     <View style={{ gap }}>
-      <PressableScale onPress={() => onPress('wash')} scaleTo={0.98} style={styles.wash} accessibilityLabel="Car and bike wash">
+      <PressableScale
+        onPress={() => onPress('wash')}
+        scaleTo={0.98}
+        style={styles.wash}
+        accessibilityLabel="Car and bike wash"
+      >
         <View style={styles.washText}>
           <Text style={styles.washTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
             Car & Bike Wash
           </Text>
-          <Text style={styles.washSub} numberOfLines={1}>
+          <Text style={styles.sub} numberOfLines={1}>
             At your doorstep
           </Text>
         </View>
-        <View style={[styles.washPanel, { width: panelW }]}>
-          <FittedArt art={ART.wash} box={{ w: panelW - 10, h: 86 }} align="bottom" />
-        </View>
+        <FittedArt art={ART.wash} box={{ w: washArtW, h: 92 }} align="center" />
       </PressableScale>
 
       <View style={[styles.duo, { gap }]}>
-        <PressableScale onPress={() => onPress('garage')} scaleTo={0.97} style={[styles.small, { width: halfW }]} accessibilityLabel="Garage service">
-          <Text style={styles.smallTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-            Garage Service
-          </Text>
-          <Text style={styles.smallSub}>Free pickup & drop</Text>
-          <View style={styles.smallPanel}>
-            <FittedArt art={ART.garage} box={{ w: halfW - 40, h: 62 }} align="center" />
-          </View>
-        </PressableScale>
-
-        <PressableScale onPress={() => onPress('accessories')} scaleTo={0.97} style={[styles.small, { width: halfW }]} accessibilityLabel="Products and accessories">
-          <Text style={styles.smallTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-            Products & Accessories
-          </Text>
-          <Text style={styles.smallSub}>Care kits & add-ons</Text>
-          <View style={styles.smallPanel}>
-            <FittedArt art={ART.accessories} box={{ w: halfW - 40, h: 62 }} align="center" />
-          </View>
-        </PressableScale>
+        <SmallCard
+          title={'Garage\nService'}
+          sub="Free pickup & drop"
+          art={ART.garage}
+          width={halfW}
+          onPress={() => onPress('garage')}
+        />
+        <SmallCard
+          title={'Products &\nAccessories'}
+          sub="Care kits & add-ons"
+          art={ART.accessories}
+          width={halfW}
+          onPress={() => onPress('accessories')}
+        />
       </View>
     </View>
+  );
+}
+
+/** Half-width card: name and one line up top, the picture filling the rest. */
+function SmallCard(props: { title: string; sub: string; art: Art; width: number; onPress: () => void }) {
+  const { title, sub, art, width, onPress } = props;
+  return (
+    <PressableScale
+      onPress={onPress}
+      scaleTo={0.97}
+      style={[styles.small, { width }]}
+      accessibilityLabel={title.replace('\n', ' ')}
+    >
+      <Text style={styles.smallTitle} numberOfLines={2}>
+        {title}
+      </Text>
+      <Text style={styles.sub} numberOfLines={1}>
+        {sub}
+      </Text>
+      <View style={styles.smallArt}>
+        <FittedArt art={art} box={{ w: width - 28, h: 72 }} align="center" />
+      </View>
+    </PressableScale>
   );
 }
 
@@ -117,27 +138,27 @@ export function AllServices({ width, onPress }: { width: number; onPress: (id: C
         <View key={g.title} style={styles.panel}>
           <Text style={styles.groupTitle}>{g.title}</Text>
           <View style={styles.row}>
-              {g.tiles.map((t) => (
-                <PressableScale
-                  key={t.id}
-                  onPress={() => onPress(t.id)}
-                  style={[styles.tile, { width: colW }]}
-                  scaleTo={0.94}
-                  accessibilityLabel={t.label.replace('\n', ' ')}
-                >
-                  <View style={styles.artWrap}>
-                    <FittedArt art={t.art} box={art} />
-                    {t.badge && (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{t.badge}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.tileLabel} numberOfLines={2}>
-                    {t.label}
-                  </Text>
-                </PressableScale>
-              ))}
+            {g.tiles.map((t) => (
+              <PressableScale
+                key={t.id}
+                onPress={() => onPress(t.id)}
+                style={[styles.tile, { width: colW }]}
+                scaleTo={0.94}
+                accessibilityLabel={t.label.replace('\n', ' ')}
+              >
+                <View style={styles.artWrap}>
+                  <FittedArt art={t.art} box={art} />
+                  {t.badge && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{t.badge}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.tileLabel} numberOfLines={2}>
+                  {t.label}
+                </Text>
+              </PressableScale>
+            ))}
           </View>
         </View>
       ))}
@@ -153,67 +174,56 @@ const card = {
 };
 
 const styles = StyleSheet.create({
+  // Art sits straight on the white cards, no box behind it.
   wash: {
     ...card,
+    height: 112,
     flexDirection: 'row',
-    alignItems: 'stretch',
-    height: 104,
-    padding: 6,
-    paddingLeft: 16,
+    alignItems: 'center',
+    paddingLeft: 18,
+    paddingRight: 10,
     overflow: 'hidden',
   },
   washText: {
     flex: 1,
-    justifyContent: 'center',
     paddingRight: 8,
   },
   washTitle: {
     fontFamily: fonts.extraBold,
-    fontSize: 19,
-    lineHeight: 24,
+    fontSize: 20,
+    lineHeight: 25,
     letterSpacing: -0.4,
     color: ink.text,
   },
-  washSub: {
-    marginTop: 2,
+  sub: {
+    marginTop: 3,
     fontFamily: fonts.medium,
     fontSize: 12.5,
     lineHeight: 17,
     color: ink.muted,
-  },
-  // No box behind the art — the illustration sits straight on the white card.
-  washPanel: {
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingBottom: 8,
   },
   duo: {
     flexDirection: 'row',
   },
   small: {
     ...card,
-    padding: 12,
+    height: 172,
+    paddingHorizontal: 14,
     paddingTop: 14,
     overflow: 'hidden',
   },
   smallTitle: {
     fontFamily: fonts.extraBold,
-    fontSize: 15,
-    letterSpacing: -0.2,
+    fontSize: 16,
+    lineHeight: 20,
+    letterSpacing: -0.3,
     color: ink.text,
   },
-  smallSub: {
-    marginTop: 2,
-    fontFamily: fonts.medium,
-    fontSize: 11.5,
-    color: ink.muted,
-  },
-  // Art straight on the white card, like the wash card.
-  smallPanel: {
-    height: 76,
-    marginTop: 10,
+  smallArt: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingBottom: 4,
   },
   panel: {
     ...card,

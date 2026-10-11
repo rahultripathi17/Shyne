@@ -2,16 +2,17 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import { setStatusBarStyle } from 'expo-status-bar';
-import { type ComponentProps, Fragment, useCallback, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { type ComponentProps, Fragment, useCallback, useEffect, useState } from 'react';
+import { Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SvgXml } from 'react-native-svg';
+import Svg, { Defs, G, Line, LinearGradient as SvgGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { ink } from '../../components/home/homeTheme';
 import { PressableScale } from '../../components/home/motion';
-import { HOORA_LOGO_XML } from '../../components/hooraLogoXml';
+import { HooraMark } from '../../components/HooraLogo';
 import { useTabBarSpace } from '../../components/tabBarSpace';
-import { fonts, noBounce } from '../../components/theme';
+import { fonts, noBounce, useAnimatedValue } from '../../components/theme';
 import { Toast, useToast } from '../../components/Toast';
 import { useAppStore } from '../../store/AppStore';
 
@@ -19,17 +20,183 @@ import { useAppStore } from '../../store/AppStore';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
+// The "HOORA BLACK" lettering from the Hoora Black design in Figma (the round H is drawn separately).
 const BLACK = {
-  pattern: require('../../../assets/profile/card-pattern.png'),
+  word: require('../../../assets/profile/hoora-black-word.png'),
+  wordDark: require('../../../assets/profile/hoora-black-word-dark.png'),
+};
+const WORD_RATIO = 497 / 48;
+
+/** Demo membership: a year from today. */
+const validTill = () => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 const PROFILE_AVATAR = require('../../../assets/profile/rahul-demo.jpg');
 
 const BLACK_PRICE = 499;
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
-// The Hoora "H" logo drawn as a faint watermark in the header.
-const markXml = (color: string) => HOORA_LOGO_XML.replace(/#FFE300/g, color);
-const MARK_RATIO = 135.571 / 40.9373;
+// Diamond-quilted stitching, like the seats of a luxury car: thin dashed gold seams in a diamond
+// grid, drawn in code so it always fills the header exactly. The seams fade in from the right.
+const STEP = 46;
+const SEAMS = Array.from({ length: 22 }, (_, i) => -7 * STEP + i * STEP);
+
+function BlackBackdrop() {
+  const glow = useAnimatedValue(0);
+
+  // The warm light behind the arcs slowly breathes: a quiet sign the membership is live.
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 0, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [glow]);
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Svg width="100%" height="100%" viewBox="0 0 400 280" preserveAspectRatio="xMidYMid slice">
+        <Defs>
+          <SvgGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor="#040405" />
+            <Stop offset="0.6" stopColor="#0B0A08" />
+            <Stop offset="1" stopColor="#16120A" />
+          </SvgGradient>
+          <SvgGradient id="seam" x1="120" y1="0" x2="400" y2="0" gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor="#E9B949" stopOpacity="0" />
+            <Stop offset="0.5" stopColor="#E9B949" stopOpacity="0.35" />
+            <Stop offset="1" stopColor="#FFE9A3" stopOpacity="0.75" />
+          </SvgGradient>
+          <SvgGradient id="puff" x1="120" y1="0" x2="400" y2="0" gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor="#000000" stopOpacity="0" />
+            <Stop offset="1" stopColor="#000000" stopOpacity="0.55" />
+          </SvgGradient>
+        </Defs>
+        <Rect x="0" y="0" width="400" height="280" fill="url(#bg)" />
+        {/* Each seam: a dark crease with the gold stitch line just beside it, for a padded look. */}
+        {SEAMS.map((x) => (
+          <G key={x}>
+            <Line x1={x} y1={0} x2={x + 280} y2={280} stroke="url(#puff)" strokeWidth={3.2} />
+            <Line x1={x + 280} y1={0} x2={x} y2={280} stroke="url(#puff)" strokeWidth={3.2} />
+            <Line
+              x1={x + 1.6}
+              y1={0}
+              x2={x + 281.6}
+              y2={280}
+              stroke="url(#seam)"
+              strokeWidth={1}
+              strokeDasharray="4 3"
+            />
+            <Line
+              x1={x + 281.6}
+              y1={0}
+              x2={x + 1.6}
+              y2={280}
+              stroke="url(#seam)"
+              strokeWidth={1}
+              strokeDasharray="4 3"
+            />
+          </G>
+        ))}
+      </Svg>
+      <Animated.View
+        style={[StyleSheet.absoluteFill, { opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] }) }]}
+      >
+        <Svg width="100%" height="100%" viewBox="0 0 400 280" preserveAspectRatio="xMidYMid slice">
+          <Defs>
+            <RadialGradient id="warm" cx="320" cy="70" r="200" gradientUnits="userSpaceOnUse">
+              <Stop offset="0" stopColor="#FFC93C" stopOpacity="0.28" />
+              <Stop offset="1" stopColor="#FFC93C" stopOpacity="0" />
+            </RadialGradient>
+          </Defs>
+          <Rect x="0" y="0" width="400" height="280" fill="url(#warm)" />
+        </Svg>
+      </Animated.View>
+      {/* Keeps the name readable on the left. */}
+      <LinearGradient
+        colors={['rgba(4,4,5,0.8)', 'rgba(4,4,5,0.25)', 'rgba(4,4,5,0)']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 0.75, y: 0.5 }}
+        style={StyleSheet.absoluteFill}
+      />
+    </View>
+  );
+}
+
+/** The green ACTIVE tag: it waves gently like a flag while a light shimmers across it. */
+function ActiveFlag() {
+  const wave = useAnimatedValue(0);
+  const shine = useAnimatedValue(0);
+
+  useEffect(() => {
+    const waving = Animated.loop(
+      Animated.sequence([
+        Animated.timing(wave, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(wave, { toValue: -1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(wave, { toValue: 0, duration: 700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    );
+    const shimmer = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shine, {
+          toValue: 1,
+          duration: 1300,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.delay(900),
+        Animated.timing(shine, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ]),
+    );
+    waving.start();
+    shimmer.start();
+    return () => {
+      waving.stop();
+      shimmer.stop();
+    };
+  }, [wave, shine]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.activeChip,
+        {
+          transform: [
+            { perspective: 300 },
+            { rotateY: wave.interpolate({ inputRange: [-1, 1], outputRange: ['-14deg', '14deg'] }) },
+            { skewY: wave.interpolate({ inputRange: [-1, 1], outputRange: ['-3deg', '3deg'] }) },
+          ],
+        },
+      ]}
+    >
+      <Text style={styles.activeText}>ACTIVE</Text>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.activeShine,
+          {
+            transform: [
+              { translateX: shine.interpolate({ inputRange: [0, 1], outputRange: [-40, 80] }) },
+              { rotate: '20deg' },
+            ],
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+    </Animated.View>
+  );
+}
 
 const MENU: { key: string; label: string; icon: IconName }[] = [
   { key: 'packs', label: 'Subscriptions & Packs', icon: 'repeat-outline' },
@@ -74,12 +241,25 @@ export default function ProfileScreen() {
         contentContainerStyle={{ paddingBottom: bottomSpace }}
       >
         {/* Header */}
-        <View style={[styles.header, member ? styles.headerBlack : styles.headerYellow, { paddingTop: insets.top + 18 }]}>
-          {member && <Image source={BLACK.pattern} resizeMode="cover" style={styles.headerPattern} />}
-          {member && (
-            <View style={styles.watermark} pointerEvents="none">
-              <SvgXml xml={markXml('#FFE300')} width={210 * MARK_RATIO} height={210} opacity={0.08} />
-            </View>
+        <View
+          style={[styles.header, member ? styles.headerBlack : styles.headerYellow, { paddingTop: insets.top + 18 }]}
+        >
+          {member ? (
+            <>
+              <BlackBackdrop />
+            </>
+          ) : (
+            <>
+              <LinearGradient
+                pointerEvents="none"
+                colors={['#FFF4C7', '#FFFAE6', '#FFFFFF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.glow} pointerEvents="none" />
+              <View style={styles.glowSmall} pointerEvents="none" />
+            </>
           )}
 
           <Pressable
@@ -90,22 +270,31 @@ export default function ProfileScreen() {
           >
             <View style={[styles.avatar, member ? styles.avatarDark : styles.avatarLight]}>
               {photoUri && photoUri !== failedPhotoUri ? (
-                <Image source={{ uri: photoUri }} style={styles.avatarImage} resizeMode="cover" onError={() => setFailedPhotoUri(photoUri)} />
+                <Image
+                  source={{ uri: photoUri }}
+                  style={styles.avatarImage}
+                  resizeMode="cover"
+                  onError={() => setFailedPhotoUri(photoUri)}
+                />
               ) : (
                 <Image source={PROFILE_AVATAR} style={styles.avatarImage} resizeMode="cover" />
               )}
             </View>
             <View style={styles.identityCopy}>
-              <Text style={[styles.name, { color: fg }]}>
-                {name || 'Rahul Tripathi'}
-              </Text>
+              <Text style={[styles.name, { color: fg }]}>{name || 'Rahul Tripathi'}</Text>
               {phone ? <Text style={[styles.contact, { color: fgSoft }]}>{displayPhone(phone)}</Text> : null}
-              {hasLinkedEmail && <Text style={[styles.email, { color: fgSoft }]}>{email?.replace('@', '@\u200B')}</Text>}
+              {hasLinkedEmail && (
+                <Text style={[styles.email, { color: fgSoft }]}>{email?.replace('@', '@\u200B')}</Text>
+              )}
             </View>
           </Pressable>
           <Pressable
             onPress={() => router.push('/edit-profile')}
-            style={[styles.editAction, member ? styles.editActionDark : styles.editActionLight, { top: insets.top + 18 }]}
+            style={[
+              styles.editAction,
+              member ? styles.editActionDark : styles.editActionLight,
+              { top: insets.top + 18 },
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Edit profile"
           >
@@ -118,22 +307,26 @@ export default function ProfileScreen() {
           <PressableScale
             onPress={() => soon(member ? 'Hoora Black benefits' : 'Hoora Black')}
             scaleTo={0.98}
-            style={styles.black}
+            style={[styles.black, member && styles.blackOn]}
             accessibilityLabel={member ? 'Hoora Black benefits' : `Join Hoora Black for ₹${BLACK_PRICE}`}
           >
             <View style={styles.blackRow}>
-              <View style={styles.blackIcon}>
-                <SvgXml xml={HOORA_LOGO_XML} width={30 * MARK_RATIO} height={30} />
-              </View>
+              <HooraMark size={40} />
               <View style={styles.blackCopy}>
-                <Text style={styles.blackTitle} numberOfLines={1}>Hoora Black</Text>
-                <Text style={styles.blackSub} numberOfLines={1}>
-                  {member ? 'Explore your benefits' : 'Save up to 40% on services'}
+                <Image
+                  source={member ? BLACK.word : BLACK.wordDark}
+                  resizeMode="contain"
+                  style={{ width: 15 * WORD_RATIO, height: 15 }}
+                  accessibilityLabel="Hoora Black"
+                />
+                <Text style={[styles.blackSub, member && styles.blackSubOn]} numberOfLines={1}>
+                  {member ? `Valid till ${validTill()}` : 'Save up to 40% on services'}
                 </Text>
               </View>
               {member ? (
-                <View style={styles.activeChip}>
-                  <Text style={styles.activeText}>ACTIVE</Text>
+                <View style={styles.blackEnd}>
+                  <ActiveFlag />
+                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
                 </View>
               ) : (
                 <View style={styles.joinPill}>
@@ -172,7 +365,12 @@ export default function ProfileScreen() {
           </View>
 
           {!isLinked && (
-            <Pressable onPress={() => router.push('/edit-profile')} style={styles.link} accessibilityRole="button" accessibilityLabel="Connect an account">
+            <Pressable
+              onPress={() => router.push('/edit-profile')}
+              style={styles.link}
+              accessibilityRole="button"
+              accessibilityLabel="Connect an account"
+            >
               <View style={styles.linkIcon}>
                 <Ionicons name="shield-checkmark-outline" size={20} color={ink.text} />
               </View>
@@ -209,12 +407,20 @@ export default function ProfileScreen() {
               <Text style={styles.rateTitle}>Rate us & earn 50 Hoora Points</Text>
               <Text style={styles.rateSub}>Tell others what you think of Hoora</Text>
             </View>
-            <Pressable onPress={() => soon('Rating')} style={({ pressed }) => [styles.rateBtn, pressed && { opacity: 0.85 }]} accessibilityRole="button">
+            <Pressable
+              onPress={() => soon('Rating')}
+              style={({ pressed }) => [styles.rateBtn, pressed && { opacity: 0.85 }]}
+              accessibilityRole="button"
+            >
               <Text style={styles.rateBtnText}>Rate now</Text>
             </Pressable>
           </View>
 
-          <Pressable onPress={signOut} style={({ pressed }) => [styles.logout, pressed && { opacity: 0.7 }]} accessibilityRole="button">
+          <Pressable
+            onPress={signOut}
+            style={({ pressed }) => [styles.logout, pressed && { opacity: 0.7 }]}
+            accessibilityRole="button"
+          >
             <Ionicons name="log-out-outline" size={18} color={ink.red} />
             <Text style={styles.logoutText}>Log out</Text>
           </Pressable>
@@ -241,26 +447,29 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerYellow: {
-    backgroundColor: '#F4F6F8',
+    backgroundColor: '#FFF8DC',
   },
   headerBlack: {
     backgroundColor: '#0D0D0E',
   },
-  headerPattern: {
+  // Soft yellow light behind a guest's header.
+  glow: {
     position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 220,
-    opacity: 0.9,
+    right: -90,
+    top: -70,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: 'rgba(255,214,10,0.22)',
   },
-  watermark: {
+  glowSmall: {
     position: 'absolute',
-    right: -70,
+    right: 40,
     bottom: -60,
-    width: 210,
-    height: 210,
-    overflow: 'hidden',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(255,227,0,0.14)',
   },
   identity: {
     marginTop: 10,
@@ -338,9 +547,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   black: {
-    paddingHorizontal: 13,
-    paddingVertical: 12,
-    borderRadius: 15,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#F1DFA2',
@@ -350,26 +559,38 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
+  // A member's card is black with a thin gold edge, like the old app.
+  blackOn: {
+    backgroundColor: '#141416',
+    borderColor: 'rgba(255,214,10,0.45)',
+  },
+  blackEnd: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   blackRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  blackIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    overflow: 'hidden',
+    gap: 12,
   },
   blackCopy: {
     flex: 1,
     minWidth: 0,
   },
   activeChip: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: '#1E8E4E',
+    height: 26,
+    paddingHorizontal: 11,
+    borderRadius: 7,
+    backgroundColor: '#16A34A',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  activeShine: {
+    position: 'absolute',
+    top: -10,
+    bottom: -10,
+    width: 18,
   },
   activeText: {
     fontFamily: fonts.extraBold,
@@ -378,27 +599,26 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   joinPill: {
-    height: 30,
-    paddingHorizontal: 10,
-    borderRadius: 15,
-    backgroundColor: ink.yellow,
+    height: 32,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: ink.text,
     justifyContent: 'center',
   },
   joinText: {
     fontFamily: fonts.extraBold,
-    fontSize: 11,
-    color: ink.text,
-  },
-  blackTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 14,
-    color: ink.text,
+    fontSize: 12,
+    color: '#FFFFFF',
   },
   blackSub: {
-    marginTop: 1,
-    fontFamily: fonts.medium,
-    fontSize: 11,
+    marginTop: 6,
+    fontFamily: fonts.semiBold,
+    fontSize: 12.5,
+    lineHeight: 16,
     color: ink.muted,
+  },
+  blackSubOn: {
+    color: 'rgba(255,255,255,0.72)',
   },
   quickRow: {
     flexDirection: 'row',

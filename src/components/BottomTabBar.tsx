@@ -19,8 +19,9 @@ export const TAB_ICONS: Record<string, [IconName, IconName]> = {
   profile: ['person-circle-outline', 'person-circle'],
 };
 
-// Bookings: a booking ticket, outline when idle and filled when selected (from Material icons).
-const BOOKINGS_ICON = ['ticket-confirmation-outline', 'ticket-confirmation'] as const;
+// Bookings: a service job card (clipboard with a checklist), outline when idle and filled when
+// selected — matches the iOS tab (SF Symbol list.clipboard).
+const BOOKINGS_ICON = ['clipboard-list-outline', 'clipboard-list'] as const;
 
 /** Height of the docked bar above the system navigation area. */
 export const BOTTOM_BAR_HEIGHT = 62;
