@@ -13,7 +13,6 @@ import { HOORA_LOGO_XML } from '../../components/hooraLogoXml';
 import { useTabBarSpace } from '../../components/tabBarSpace';
 import { fonts, noBounce } from '../../components/theme';
 import { Toast, useToast } from '../../components/Toast';
-import { VehicleSheet } from '../../components/VehicleSheet';
 import { useAppStore } from '../../store/AppStore';
 
 // Profile header, compact membership status, quick links, and account menu.
@@ -45,7 +44,6 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const bottomSpace = useTabBarSpace();
   const { name, email, phone, photoUri, blackMember, linked, signOut } = useAppStore();
-  const [vehiclesOpen, setVehiclesOpen] = useState(false);
   const [failedPhotoUri, setFailedPhotoUri] = useState<string>();
   const toast = useToast();
   const soon = (what: string) => toast.show(`${what} — coming soon`);
@@ -156,7 +154,7 @@ export default function ProfileScreen() {
               <PressableScale
                 key={q.key}
                 onPress={() => {
-                  if (q.key === 'vehicles') setVehiclesOpen(true);
+                  if (q.key === 'vehicles') router.push('/vehicles');
                   else if (q.key === 'points') router.navigate('/rewards');
                   else soon(q.label.replace('\n', ' '));
                 }}
@@ -225,7 +223,6 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      <VehicleSheet visible={vehiclesOpen} onClose={() => setVehiclesOpen(false)} />
       <Toast toast={toast} bottom={bottomSpace} />
     </View>
   );

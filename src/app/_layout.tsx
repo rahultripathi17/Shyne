@@ -33,6 +33,7 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
         <Stack.Screen name="service/[id]" options={{ presentation: 'modal', title: 'Book a wash' }} />
         {/* Full screens (not sheets) with their own top bar */}
         <Stack.Screen name="add-car" options={{ headerShown: false }} />
+        <Stack.Screen name="vehicles" options={{ headerShown: false }} />
         <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
         <Stack.Screen name="account-settings" options={{ headerShown: false }} />
         <Stack.Screen name="booking/[id]" options={{ headerShown: false }} />

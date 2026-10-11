@@ -90,6 +90,23 @@ export function PlateField({ value, onChange, autoFocus, onSubmit }: Props) {
   );
 }
 
+/** A saved number shown large and read-only, with the same HSRP look as the input. */
+export function PlateDisplay({ plate }: { plate: string }) {
+  return (
+    <View style={[styles.plate, styles.displayPlate]}>
+      <View style={styles.inner}>
+        <View style={styles.side}>
+          <ChakraHologram size={16} />
+          <Text style={styles.ind}>IND</Text>
+        </View>
+        <Text style={styles.displayText} numberOfLines={1} adjustsFontSizeToFit>
+          {formatPlate(plate)}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 /** A saved number shown small, as a clean stamped plate (no emblem at this size). */
 export function PlateBadge({ plate }: { plate: string }) {
   return (
@@ -123,12 +140,16 @@ const styles = StyleSheet.create({
     borderColor: '#2B2D33',
     overflow: 'hidden',
   },
+  // The emblem strip is its own panel, cut off from the number by a pressed line.
   side: {
-    width: 34,
+    width: 38,
     alignSelf: 'stretch',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
+    borderRightWidth: 1.2,
+    borderRightColor: '#2B2D33',
+    backgroundColor: '#F4F7FD',
   },
   ind: {
     fontFamily: fonts.extraBold,
@@ -140,8 +161,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: '100%',
-    paddingLeft: 2,
-    paddingRight: 34,
+    paddingHorizontal: 8,
     fontFamily: fonts.extraBold,
     fontSize: 22,
     letterSpacing: 2.2,
@@ -149,6 +169,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     // Browsers draw a focus ring on inputs; the plate's own rim is the focus cue.
     ...Platform.select({ web: { outlineStyle: 'none' } as object }),
+  },
+  displayPlate: {
+    height: 52,
+    padding: 3,
+    borderRadius: 9,
+  },
+  displayText: {
+    flex: 1,
+    paddingHorizontal: 8,
+    fontFamily: fonts.extraBold,
+    fontSize: 19,
+    lineHeight: 24,
+    letterSpacing: 1.6,
+    color: ink.text,
+    textAlign: 'center',
+    includeFontPadding: false,
   },
   badge: {
     alignSelf: 'flex-start',
