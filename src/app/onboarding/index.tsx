@@ -13,7 +13,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,18 +24,28 @@ import { fonts, useAnimatedValue } from '../../components/theme';
 import { useAppStore } from '../../store/AppStore';
 
 // The same banners as Home, cross-fading on their own.
-const SLIDES = BANNERS.map((b) => b.source);
-const SLIDE_MS = 3000;
-/** Same shape as the Home banner (height = 0.92 × width). */
-const BANNER_RATIO = 0.92;
+const SLIDES = BANNERS;
+/** All banners are 1290 × 1188. */
+const BANNER_ASPECT = 1290 / 1188;
+const SLIDE_MS = 4500;
 
 function LoginBanners() {
-  const { width } = useWindowDimensions();
+  const [box, setBox] = useState({ w: 0, h: 0 });
   const [index, setIndex] = useState(0);
   const fade = useAnimatedValue(1);
+  const progress = useAnimatedValue(0);
 
+  // Same rhythm as Home: the active dot fills like a progress line, then the next banner fades in.
   useEffect(() => {
-    const t = setTimeout(() => {
+    progress.setValue(0);
+    const timer = Animated.timing(progress, {
+      toValue: 1,
+      duration: SLIDE_MS,
+      easing: Easing.linear,
+      useNativeDriver: true,
+    });
+    timer.start(({ finished }) => {
+      if (!finished) return;
       fade.setValue(0);
       setIndex((i) => (i + 1) % SLIDES.length);
       Animated.timing(fade, {
@@ -45,33 +54,36 @@ function LoginBanners() {
         easing: Easing.out(Easing.quad),
         useNativeDriver: true,
       }).start();
-    }, SLIDE_MS);
-    return () => clearTimeout(t);
-  }, [index, fade]);
+    });
+    return () => timer.stop();
+  }, [index, fade, progress]);
 
   const prev = (index + SLIDES.length - 1) % SLIDES.length;
-  // The banner is shown whole, at the same shape as on Home, sitting on the sheet's edge; a soft
-  // blurred copy of it fills the space above, so nothing (like a banner's text) is cropped.
-  const banner = { width, height: Math.round(width * BANNER_RATIO) };
+  // Fill the area's height (or width, if it's ever wider) and slide sideways to the focus point.
+  const place = (x: number) => {
+    const height = Math.max(box.h, box.w / BANNER_ASPECT);
+    const width = height * BANNER_ASPECT;
+    return { position: 'absolute' as const, top: (box.h - height) / 2, left: -(width - box.w) * x, width, height };
+  };
   return (
-    <View style={StyleSheet.absoluteFill}>
-      <Image source={SLIDES[prev]} resizeMode="cover" blurRadius={30} style={styles.slide} />
-      <Animated.Image
-        source={SLIDES[index]}
-        resizeMode="cover"
-        blurRadius={30}
-        style={[styles.slide, { opacity: fade }]}
-      />
-      <View style={styles.ambientShade} />
-      <View style={[styles.bannerBox, banner]}>
-        <Image source={SLIDES[prev]} resizeMode="cover" style={styles.slide} />
-        <Animated.Image source={SLIDES[index]} resizeMode="cover" style={[styles.slide, { opacity: fade }]} />
-        <LinearGradient colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0)']} style={styles.bannerFadeTop} />
-      </View>
+    <View
+      style={StyleSheet.absoluteFill}
+      onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+    >
+      {/* Full-bleed: each banner fills the whole top area, shifted so its subject stays in view. */}
+      <Image source={SLIDES[prev].source} style={place(SLIDES[prev].loginX)} />
+      <Animated.Image source={SLIDES[index].source} style={[place(SLIDES[index].loginX), { opacity: fade }]} />
+      <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.45)']} style={styles.bottomShade} />
       <View style={styles.dots}>
-        {SLIDES.map((_, i) => (
-          <View key={i} style={[styles.dot, i === index && styles.dotOn]} />
-        ))}
+        {SLIDES.map((_, i) =>
+          i === index ? (
+            <View key={i} style={styles.track}>
+              <Animated.View style={[styles.fill, { transform: [{ scaleX: progress }] }]} />
+            </View>
+          ) : (
+            <View key={i} style={styles.dot} />
+          ),
+        )}
       </View>
     </View>
   );
@@ -174,27 +186,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#000000',
   },
-  slide: {
-    ...StyleSheet.absoluteFill,
-    width: '100%',
-    height: '100%',
-  },
-  ambientShade: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  bannerBox: {
-    position: 'absolute',
-    left: 0,
-    bottom: 0,
-    overflow: 'hidden',
-  },
-  bannerFadeTop: {
+  bottomShade: {
     position: 'absolute',
     left: 0,
     right: 0,
-    top: 0,
-    height: 60,
+    bottom: 0,
+    height: 140,
   },
   statusShade: {
     position: 'absolute',
@@ -217,9 +214,18 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: 'rgba(255,255,255,0.5)',
   },
-  dotOn: {
-    width: 20,
+  track: {
+    width: 28,
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+  fill: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: 3,
     backgroundColor: '#FFFFFF',
+    transformOrigin: 'left',
   },
   // White sheet that overlaps the photo with rounded top corners.
   form: {

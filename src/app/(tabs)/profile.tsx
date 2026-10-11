@@ -1,18 +1,21 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import { setStatusBarStyle } from 'expo-status-bar';
-import { type ComponentProps, Fragment, useCallback, useEffect, useState } from 'react';
-import { Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { type ComponentProps, Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import * as Haptics from 'expo-haptics';
+import { Animated, Easing, Image, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Defs, G, Line, LinearGradient as SvgGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
+import { SvgXml } from 'react-native-svg';
 
 import { ink } from '../../components/home/homeTheme';
 import { PressableScale } from '../../components/home/motion';
 import { HooraMark } from '../../components/HooraLogo';
+import { HOORA_LOGO_XML } from '../../components/hooraLogoXml';
 import { useTabBarSpace } from '../../components/tabBarSpace';
-import { fonts, noBounce, useAnimatedValue } from '../../components/theme';
+import { CarLoader } from '../../components/CarLoader';
+import { PullSpinner } from '../../components/home/PullSpinner';
+import { fonts, useAnimatedValue } from '../../components/theme';
 import { Toast, useToast } from '../../components/Toast';
 import { useAppStore } from '../../store/AppStore';
 
@@ -22,6 +25,7 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 
 // The "HOORA BLACK" lettering from the Hoora Black design in Figma (the round H is drawn separately).
 const BLACK = {
+  pattern: require('../../../assets/profile/card-pattern.png'),
   word: require('../../../assets/profile/hoora-black-word.png'),
   wordDark: require('../../../assets/profile/hoora-black-word-dark.png'),
 };
@@ -36,97 +40,14 @@ const validTill = () => {
 const PROFILE_AVATAR = require('../../../assets/profile/rahul-demo.jpg');
 
 const BLACK_PRICE = 499;
-const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
+/** Pull this far (and let go) to refresh. */
+const PULL_THRESHOLD = 90;
+/** Demo length of the long-wait screen. */
+const WAIT_MS = 3000;
 
-// Diamond-quilted stitching, like the seats of a luxury car: thin dashed gold seams in a diamond
-// grid, drawn in code so it always fills the header exactly. The seams fade in from the right.
-const STEP = 46;
-const SEAMS = Array.from({ length: 22 }, (_, i) => -7 * STEP + i * STEP);
-
-function BlackBackdrop() {
-  const glow = useAnimatedValue(0);
-
-  // The warm light behind the arcs slowly breathes: a quiet sign the membership is live.
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(glow, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(glow, { toValue: 0, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [glow]);
-
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Svg width="100%" height="100%" viewBox="0 0 400 280" preserveAspectRatio="xMidYMid slice">
-        <Defs>
-          <SvgGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#040405" />
-            <Stop offset="0.6" stopColor="#0B0A08" />
-            <Stop offset="1" stopColor="#16120A" />
-          </SvgGradient>
-          <SvgGradient id="seam" x1="120" y1="0" x2="400" y2="0" gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor="#E9B949" stopOpacity="0" />
-            <Stop offset="0.5" stopColor="#E9B949" stopOpacity="0.35" />
-            <Stop offset="1" stopColor="#FFE9A3" stopOpacity="0.75" />
-          </SvgGradient>
-          <SvgGradient id="puff" x1="120" y1="0" x2="400" y2="0" gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor="#000000" stopOpacity="0" />
-            <Stop offset="1" stopColor="#000000" stopOpacity="0.55" />
-          </SvgGradient>
-        </Defs>
-        <Rect x="0" y="0" width="400" height="280" fill="url(#bg)" />
-        {/* Each seam: a dark crease with the gold stitch line just beside it, for a padded look. */}
-        {SEAMS.map((x) => (
-          <G key={x}>
-            <Line x1={x} y1={0} x2={x + 280} y2={280} stroke="url(#puff)" strokeWidth={3.2} />
-            <Line x1={x + 280} y1={0} x2={x} y2={280} stroke="url(#puff)" strokeWidth={3.2} />
-            <Line
-              x1={x + 1.6}
-              y1={0}
-              x2={x + 281.6}
-              y2={280}
-              stroke="url(#seam)"
-              strokeWidth={1}
-              strokeDasharray="4 3"
-            />
-            <Line
-              x1={x + 281.6}
-              y1={0}
-              x2={x + 1.6}
-              y2={280}
-              stroke="url(#seam)"
-              strokeWidth={1}
-              strokeDasharray="4 3"
-            />
-          </G>
-        ))}
-      </Svg>
-      <Animated.View
-        style={[StyleSheet.absoluteFill, { opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] }) }]}
-      >
-        <Svg width="100%" height="100%" viewBox="0 0 400 280" preserveAspectRatio="xMidYMid slice">
-          <Defs>
-            <RadialGradient id="warm" cx="320" cy="70" r="200" gradientUnits="userSpaceOnUse">
-              <Stop offset="0" stopColor="#FFC93C" stopOpacity="0.28" />
-              <Stop offset="1" stopColor="#FFC93C" stopOpacity="0" />
-            </RadialGradient>
-          </Defs>
-          <Rect x="0" y="0" width="400" height="280" fill="url(#warm)" />
-        </Svg>
-      </Animated.View>
-      {/* Keeps the name readable on the left. */}
-      <LinearGradient
-        colors={['rgba(4,4,5,0.8)', 'rgba(4,4,5,0.25)', 'rgba(4,4,5,0)']}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 0.75, y: 0.5 }}
-        style={StyleSheet.absoluteFill}
-      />
-    </View>
-  );
-}
+// The Hoora "H" logo drawn as a faint watermark in the member header.
+const markXml = (color: string) => HOORA_LOGO_XML.replace(/#FFE300/g, color);
+const MARK_RATIO = 135.571 / 40.9373;
 
 /** The green ACTIVE tag: it waves gently like a flag while a light shimmers across it. */
 function ActiveFlag() {
@@ -210,8 +131,33 @@ const displayPhone = (phone: string) => phone.replace(/^\+91\s?/, '+91 - ');
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const bottomSpace = useTabBarSpace();
-  const { name, email, phone, photoUri, blackMember, linked, signOut } = useAppStore();
+  const { name, email, phone, photoUri, blackMember, linked } = useAppStore();
   const [failedPhotoUri, setFailedPhotoUri] = useState<string>();
+  // Pull to refresh like Home; on release the screen turns white with the car loader for a few seconds.
+  const [waiting, setWaiting] = useState(false);
+  const waitTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const startWait = () => {
+    if (waiting) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setWaiting(true);
+    waitTimer.current = setTimeout(() => setWaiting(false), WAIT_MS);
+  };
+  useEffect(() => () => clearTimeout(waitTimer.current), []);
+  // Dark status bar icons on the white loading screen; back to the header's style afterwards.
+  useEffect(() => {
+    setStatusBarStyle(waiting || !blackMember ? 'dark' : 'light');
+  }, [waiting, blackMember]);
+  const scrollY = useAnimatedValue(0);
+  const [contentH, setContentH] = useState(0);
+  const [layoutH, setLayoutH] = useState(0);
+  const maxScroll = contentH > layoutH ? contentH - layoutH : 10000;
+  const pinY =
+    Platform.OS === 'ios'
+      ? scrollY.interpolate({
+          inputRange: [-1000, 0, maxScroll, maxScroll + 1000],
+          outputRange: [-1000, 0, 0, 1000],
+        })
+      : 0;
   const toast = useToast();
   const soon = (what: string) => toast.show(`${what} — coming soon`);
   const member = !!blackMember;
@@ -234,202 +180,222 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView
-        {...noBounce}
+      <Animated.ScrollView
+        bounces={Platform.OS === 'ios'}
+        alwaysBounceVertical={Platform.OS === 'ios'}
+        overScrollMode="never"
+        // iOS: starts when the finger lets go past the threshold, not mid-pull.
+        onScrollEndDrag={(e) => {
+          if (Platform.OS === 'ios' && e.nativeEvent.contentOffset.y <= -PULL_THRESHOLD) startWait();
+        }}
+        refreshControl={
+          Platform.OS === 'android' ? (
+            // Android's own spinner is hidden: the car loader is the only indicator.
+            <RefreshControl
+              refreshing={false}
+              onRefresh={startWait}
+              colors={['transparent']}
+              progressBackgroundColor="transparent"
+            />
+          ) : undefined
+        }
         contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        onLayout={(e) => setLayoutH(e.nativeEvent.layout.height)}
+        onContentSizeChange={(_, h) => setContentH(h)}
         contentContainerStyle={{ paddingBottom: bottomSpace }}
       >
-        {/* Header */}
-        <View
-          style={[styles.header, member ? styles.headerBlack : styles.headerYellow, { paddingTop: insets.top + 18 }]}
-        >
-          {member ? (
-            <>
-              <BlackBackdrop />
-            </>
-          ) : (
-            <>
-              <LinearGradient
-                pointerEvents="none"
-                colors={['#FFF4C7', '#FFFAE6', '#FFFFFF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <View style={styles.glow} pointerEvents="none" />
-              <View style={styles.glowSmall} pointerEvents="none" />
-            </>
-          )}
-
-          <Pressable
-            onPress={() => router.push('/edit-profile')}
-            style={styles.identity}
-            accessibilityRole="button"
-            accessibilityLabel="View profile details"
+        <Animated.View style={{ transform: [{ translateY: pinY }] }}>
+          {/* Header */}
+          <View
+            style={[styles.header, member ? styles.headerBlack : styles.headerYellow, { paddingTop: insets.top + 18 }]}
           >
-            <View style={[styles.avatar, member ? styles.avatarDark : styles.avatarLight]}>
-              {photoUri && photoUri !== failedPhotoUri ? (
-                <Image
-                  source={{ uri: photoUri }}
-                  style={styles.avatarImage}
-                  resizeMode="cover"
-                  onError={() => setFailedPhotoUri(photoUri)}
+            {member ? (
+              <>
+                <Image source={BLACK.pattern} resizeMode="cover" style={styles.headerPattern} />
+                <View style={styles.watermark} pointerEvents="none">
+                  <SvgXml xml={markXml('#FFE300')} width={210 * MARK_RATIO} height={210} opacity={0.08} />
+                </View>
+              </>
+            ) : (
+              <>
+                <LinearGradient
+                  pointerEvents="none"
+                  colors={['#FFF4C7', '#FFFAE6', '#FFFFFF']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
                 />
-              ) : (
-                <Image source={PROFILE_AVATAR} style={styles.avatarImage} resizeMode="cover" />
-              )}
-            </View>
-            <View style={styles.identityCopy}>
-              <Text style={[styles.name, { color: fg }]}>{name || 'Rahul Tripathi'}</Text>
-              {phone ? <Text style={[styles.contact, { color: fgSoft }]}>{displayPhone(phone)}</Text> : null}
-              {hasLinkedEmail && (
-                <Text style={[styles.email, { color: fgSoft }]}>{email?.replace('@', '@\u200B')}</Text>
-              )}
-            </View>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push('/edit-profile')}
-            style={[
-              styles.editAction,
-              member ? styles.editActionDark : styles.editActionLight,
-              { top: insets.top + 18 },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Edit profile"
-          >
-            <Ionicons name="create-outline" size={17} color={fg} />
-          </Pressable>
-        </View>
+                <View style={styles.glow} pointerEvents="none" />
+                <View style={styles.glowSmall} pointerEvents="none" />
+              </>
+            )}
 
-        <View style={styles.body}>
-          {/* Compact membership entry point for guests and active members. */}
-          <PressableScale
-            onPress={() => soon(member ? 'Hoora Black benefits' : 'Hoora Black')}
-            scaleTo={0.98}
-            style={[styles.black, member && styles.blackOn]}
-            accessibilityLabel={member ? 'Hoora Black benefits' : `Join Hoora Black for ₹${BLACK_PRICE}`}
-          >
-            <View style={styles.blackRow}>
-              <HooraMark size={40} />
-              <View style={styles.blackCopy}>
-                <Image
-                  source={member ? BLACK.word : BLACK.wordDark}
-                  resizeMode="contain"
-                  style={{ width: 15 * WORD_RATIO, height: 15 }}
-                  accessibilityLabel="Hoora Black"
-                />
-                <Text style={[styles.blackSub, member && styles.blackSubOn]} numberOfLines={1}>
-                  {member ? `Valid till ${validTill()}` : 'Save up to 40% on services'}
-                </Text>
-              </View>
-              {member ? (
-                <View style={styles.blackEnd}>
-                  <ActiveFlag />
-                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
-                </View>
-              ) : (
-                <View style={styles.joinPill}>
-                  <Text style={styles.joinText}>Join ₹{BLACK_PRICE}</Text>
-                </View>
-              )}
-            </View>
-          </PressableScale>
-
-          {/* Quick links */}
-          <View style={styles.quickRow}>
-            {[
-              { key: 'vehicles', label: 'My\nVehicles', icon: 'car-sport-outline' as IconName },
-              { key: 'address', label: 'Saved\nAddress', icon: 'location-outline' as IconName },
-              { key: 'points', label: 'Hoora\nPoints', icon: 'wallet-outline' as IconName },
-              { key: 'help', label: 'Help &\nSupport', icon: 'headset-outline' as IconName },
-            ].map((q) => (
-              <PressableScale
-                key={q.key}
-                onPress={() => {
-                  if (q.key === 'vehicles') router.push('/vehicles');
-                  else if (q.key === 'points') router.navigate('/rewards');
-                  else soon(q.label.replace('\n', ' '));
-                }}
-                scaleTo={0.96}
-                containerStyle={{ flex: 1 }}
-                style={styles.quick}
-                accessibilityLabel={q.label.replace('\n', ' ')}
-              >
-                <View style={styles.quickIcon}>
-                  <Ionicons name={q.icon} size={20} color={ink.text} />
-                </View>
-                <Text style={styles.quickLabel}>{q.label}</Text>
-              </PressableScale>
-            ))}
-          </View>
-
-          {!isLinked && (
             <Pressable
               onPress={() => router.push('/edit-profile')}
-              style={styles.link}
+              style={styles.identity}
               accessibilityRole="button"
-              accessibilityLabel="Connect an account"
+              accessibilityLabel="View profile details"
             >
-              <View style={styles.linkIcon}>
-                <Ionicons name="shield-checkmark-outline" size={20} color={ink.text} />
+              <View style={[styles.avatar, member ? styles.avatarDark : styles.avatarLight]}>
+                {photoUri && photoUri !== failedPhotoUri ? (
+                  <Image
+                    source={{ uri: photoUri }}
+                    style={styles.avatarImage}
+                    resizeMode="cover"
+                    onError={() => setFailedPhotoUri(photoUri)}
+                  />
+                ) : (
+                  <Image source={PROFILE_AVATAR} style={styles.avatarImage} resizeMode="cover" />
+                )}
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.linkTitle}>Connect your account</Text>
-                <Text style={styles.linkSub}>Choose a sign-in method</Text>
+              <View style={styles.identityCopy}>
+                <Text style={[styles.name, { color: fg }]}>{name || 'Rahul Tripathi'}</Text>
+                {phone ? <Text style={[styles.contact, { color: fgSoft }]}>{displayPhone(phone)}</Text> : null}
+                {hasLinkedEmail && (
+                  <Text style={[styles.email, { color: fgSoft }]}>{email?.replace('@', '@\u200B')}</Text>
+                )}
               </View>
-              <Ionicons name="chevron-forward" size={18} color={ink.faint} />
             </Pressable>
-          )}
-
-          {/* Menu */}
-          <View style={styles.menu}>
-            {MENU.map((m, i) => (
-              <Fragment key={m.key}>
-                {i > 0 && <View style={styles.rule} />}
-                <Pressable
-                  onPress={() => onMenu(m.key, m.label)}
-                  style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: '#FAFAFB' }]}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name={m.icon} size={21} color={ink.text} />
-                  <Text style={styles.menuLabel}>{m.label}</Text>
-                  <Ionicons name="chevron-forward" size={18} color={ink.faint} />
-                </Pressable>
-              </Fragment>
-            ))}
-          </View>
-
-          {/* Rate & earn */}
-          <View style={styles.rate}>
-            <Image source={require('../../../assets/profile/rate-phone.png')} style={styles.rateImg} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={styles.rateTitle}>Rate us & earn 50 Hoora Points</Text>
-              <Text style={styles.rateSub}>Tell others what you think of Hoora</Text>
-            </View>
             <Pressable
-              onPress={() => soon('Rating')}
-              style={({ pressed }) => [styles.rateBtn, pressed && { opacity: 0.85 }]}
+              onPress={() => router.push('/edit-profile')}
+              style={[
+                styles.editAction,
+                member ? styles.editActionDark : styles.editActionLight,
+                { top: insets.top + 18 },
+              ]}
               accessibilityRole="button"
+              accessibilityLabel="Edit profile"
             >
-              <Text style={styles.rateBtnText}>Rate now</Text>
+              <Ionicons name="create-outline" size={17} color={fg} />
             </Pressable>
           </View>
 
-          <Pressable
-            onPress={signOut}
-            style={({ pressed }) => [styles.logout, pressed && { opacity: 0.7 }]}
-            accessibilityRole="button"
-          >
-            <Ionicons name="log-out-outline" size={18} color={ink.red} />
-            <Text style={styles.logoutText}>Log out</Text>
-          </Pressable>
+          <View style={styles.body}>
+            {/* Compact membership entry point for guests and active members. */}
+            <PressableScale
+              onPress={() => soon(member ? 'Hoora Black benefits' : 'Hoora Black')}
+              scaleTo={0.98}
+              style={[styles.black, member && styles.blackOn]}
+              accessibilityLabel={member ? 'Hoora Black benefits' : `Join Hoora Black for ₹${BLACK_PRICE}`}
+            >
+              <View style={styles.blackRow}>
+                <HooraMark size={40} />
+                <View style={styles.blackCopy}>
+                  <Image
+                    source={member ? BLACK.word : BLACK.wordDark}
+                    resizeMode="contain"
+                    style={{ width: 15 * WORD_RATIO, height: 15 }}
+                    accessibilityLabel="Hoora Black"
+                  />
+                  <Text style={[styles.blackSub, member && styles.blackSubOn]} numberOfLines={1}>
+                    {member ? `Valid till ${validTill()}` : 'Save up to 40% on services'}
+                  </Text>
+                </View>
+                {member ? (
+                  <View style={styles.blackEnd}>
+                    <ActiveFlag />
+                    <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
+                  </View>
+                ) : (
+                  <View style={styles.joinPill}>
+                    <Text style={styles.joinText}>Join ₹{BLACK_PRICE}</Text>
+                  </View>
+                )}
+              </View>
+            </PressableScale>
 
-          <Text style={styles.version}>Hoora · Version {APP_VERSION}</Text>
-        </View>
-      </ScrollView>
+            {/* Quick links */}
+            <View style={styles.quickRow}>
+              {[
+                { key: 'vehicles', label: 'My\nVehicles', icon: 'car-sport-outline' as IconName },
+                { key: 'address', label: 'Saved\nAddress', icon: 'location-outline' as IconName },
+                { key: 'points', label: 'Hoora\nPoints', icon: 'wallet-outline' as IconName },
+                { key: 'help', label: 'Help &\nSupport', icon: 'headset-outline' as IconName },
+              ].map((q) => (
+                <PressableScale
+                  key={q.key}
+                  onPress={() => {
+                    if (q.key === 'vehicles') router.push('/vehicles');
+                    else if (q.key === 'points') router.navigate('/rewards');
+                    else soon(q.label.replace('\n', ' '));
+                  }}
+                  scaleTo={0.96}
+                  containerStyle={{ flex: 1 }}
+                  style={styles.quick}
+                  accessibilityLabel={q.label.replace('\n', ' ')}
+                >
+                  <View style={styles.quickIcon}>
+                    <Ionicons name={q.icon} size={20} color={ink.text} />
+                  </View>
+                  <Text style={styles.quickLabel}>{q.label}</Text>
+                </PressableScale>
+              ))}
+            </View>
+
+            {!isLinked && (
+              <Pressable
+                onPress={() => router.push('/edit-profile')}
+                style={styles.link}
+                accessibilityRole="button"
+                accessibilityLabel="Connect an account"
+              >
+                <View style={styles.linkIcon}>
+                  <Ionicons name="shield-checkmark-outline" size={20} color={ink.text} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.linkTitle}>Connect your account</Text>
+                  <Text style={styles.linkSub}>Choose a sign-in method</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={ink.faint} />
+              </Pressable>
+            )}
+
+            {/* Menu */}
+            <View style={styles.menu}>
+              {MENU.map((m, i) => (
+                <Fragment key={m.key}>
+                  {i > 0 && <View style={styles.rule} />}
+                  <Pressable
+                    onPress={() => onMenu(m.key, m.label)}
+                    style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: '#FAFAFB' }]}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name={m.icon} size={21} color={ink.text} />
+                    <Text style={styles.menuLabel}>{m.label}</Text>
+                    <Ionicons name="chevron-forward" size={18} color={ink.faint} />
+                  </Pressable>
+                </Fragment>
+              ))}
+            </View>
+
+            {/* Rate & earn */}
+            <View style={styles.rate}>
+              <Image source={require('../../../assets/profile/rate-phone.png')} style={styles.rateImg} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.rateTitle}>Rate us & earn 50 Hoora Points</Text>
+                <Text style={styles.rateSub}>Tell others what you think of Hoora</Text>
+              </View>
+              <Pressable
+                onPress={() => soon('Rating')}
+                style={({ pressed }) => [styles.rateBtn, pressed && { opacity: 0.85 }]}
+                accessibilityRole="button"
+              >
+                <Text style={styles.rateBtnText}>Rate now</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Animated.View>
+      </Animated.ScrollView>
 
       <Toast toast={toast} bottom={bottomSpace} />
+      {/* iOS: the same pull ring as Home while pulling (content stays in place) */}
+      {Platform.OS === 'ios' && (
+        <PullSpinner scrollY={scrollY} refreshing={false} top={insets.top + 10} threshold={PULL_THRESHOLD} />
+      )}
+      <CarLoader visible={waiting} />
     </View>
   );
 }
@@ -453,6 +419,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D0D0E',
   },
   // Soft yellow light behind a guest's header.
+  headerPattern: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 220,
+    opacity: 0.9,
+  },
+  watermark: {
+    position: 'absolute',
+    right: -70,
+    bottom: -60,
+    width: 210,
+    height: 210,
+    overflow: 'hidden',
+  },
   glow: {
     position: 'absolute',
     right: -90,
@@ -745,29 +727,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 13,
     color: ink.text,
-  },
-  logout: {
-    marginTop: 18,
-    height: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#F3D0D0',
-  },
-  logoutText: {
-    fontFamily: fonts.bold,
-    fontSize: 15,
-    color: ink.red,
-  },
-  version: {
-    marginTop: 14,
-    textAlign: 'center',
-    fontFamily: fonts.medium,
-    fontSize: 11,
-    color: ink.faint,
   },
 });

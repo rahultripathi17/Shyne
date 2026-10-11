@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { type ComponentProps, Fragment, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -11,17 +12,18 @@ import { TopBar } from '../components/TopBar';
 import { useAppStore } from '../store/AppStore';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
+
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 type Row = { key: string; label: string; icon: IconName };
 
-/** Account Settings — privacy, about & legal, and deleting the account. */
+/** Account Settings — privacy, about & legal, then logging out and deleting the account. */
 export default function AccountSettingsScreen() {
   const insets = useSafeAreaInsets();
   const { signOut } = useAppStore();
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirm, setConfirm] = useState<'logout' | 'delete'>();
   const toast = useToast();
 
-  // Only what isn't already on Profile: privacy, about & legal, then deleting the account last.
-  // Sign-in details live in Edit profile and Log out sits at the bottom of Profile.
+  // Privacy, about & legal, then the account actions last. Sign-in details live in Edit profile.
   const sections: { title: string; rows: Row[] }[] = [
     {
       title: 'Privacy',
@@ -70,32 +72,53 @@ export default function AccountSettingsScreen() {
 
         <Text style={styles.section}>Account</Text>
         <View style={styles.card}>
-          {confirmDelete ? (
-            <View style={styles.confirm}>
-              <Text style={styles.confirmTitle}>Delete your Hoora account?</Text>
+          {confirm ? (
+            <View style={[styles.confirm, confirm === 'logout' && styles.confirmCalm]}>
+              <Text style={styles.confirmTitle}>
+                {confirm === 'logout' ? 'Log out of Hoora?' : 'Delete your Hoora account?'}
+              </Text>
               <Text style={styles.confirmBody}>
-                Your profile, vehicles, bookings and Hoora Points will be removed. This can’t be undone.
+                {confirm === 'logout'
+                  ? 'You can log back in anytime with your mobile number.'
+                  : 'Your profile, vehicles, bookings and Hoora Points will be removed. This can’t be undone.'}
               </Text>
               <View style={styles.confirmRow}>
-                <Pressable onPress={() => setConfirmDelete(false)} style={styles.keep} accessibilityRole="button">
-                  <Text style={styles.keepText}>Keep account</Text>
+                <Pressable onPress={() => setConfirm(undefined)} style={styles.keep} accessibilityRole="button">
+                  <Text style={styles.keepText}>{confirm === 'logout' ? 'Cancel' : 'Keep account'}</Text>
                 </Pressable>
-                <Pressable onPress={signOut} style={styles.delete} accessibilityRole="button">
-                  <Text style={styles.deleteText}>Delete</Text>
+                <Pressable
+                  onPress={signOut}
+                  style={[styles.delete, confirm === 'logout' && styles.logoutBtn]}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.deleteText}>{confirm === 'logout' ? 'Log out' : 'Delete'}</Text>
                 </Pressable>
               </View>
             </View>
           ) : (
-            <Pressable
-              onPress={() => setConfirmDelete(true)}
-              style={({ pressed }) => [styles.row, pressed && { backgroundColor: '#FFF7F7' }]}
-              accessibilityRole="button"
-            >
-              <Ionicons name="trash-outline" size={20} color={ink.red} />
-              <Text style={[styles.label, { color: ink.red }]}>Delete account</Text>
-            </Pressable>
+            <>
+              <Pressable
+                onPress={() => setConfirm('logout')}
+                style={({ pressed }) => [styles.row, pressed && { backgroundColor: '#FAFAFB' }]}
+                accessibilityRole="button"
+              >
+                <Ionicons name="log-out-outline" size={20} color={ink.text} />
+                <Text style={styles.label}>Log out</Text>
+              </Pressable>
+              <View style={styles.rule} />
+              <Pressable
+                onPress={() => setConfirm('delete')}
+                style={({ pressed }) => [styles.row, pressed && { backgroundColor: '#FFF7F7' }]}
+                accessibilityRole="button"
+              >
+                <Ionicons name="trash-outline" size={20} color={ink.red} />
+                <Text style={[styles.label, { color: ink.red }]}>Delete account</Text>
+              </Pressable>
+            </>
           )}
         </View>
+
+        <Text style={styles.version}>Hoora · Version {APP_VERSION}</Text>
       </ScrollView>
       <Toast toast={toast} bottom={insets.bottom + 24} />
     </View>
@@ -147,6 +170,9 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#FFF7F7',
   },
+  confirmCalm: {
+    backgroundColor: '#F7F8FA',
+  },
   confirmTitle: {
     fontFamily: fonts.extraBold,
     fontSize: 15,
@@ -187,9 +213,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  logoutBtn: {
+    backgroundColor: ink.text,
+  },
   deleteText: {
     fontFamily: fonts.bold,
     fontSize: 14,
     color: '#FFFFFF',
+  },
+  version: {
+    marginTop: 22,
+    textAlign: 'center',
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    color: ink.faint,
   },
 });

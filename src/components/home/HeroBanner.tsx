@@ -4,18 +4,51 @@ import { Animated, Easing, FlatList, Image, type ImageSourcePropType, Pressable,
 
 import { noBounce, useAnimatedValue } from '../theme';
 
-export type BannerTarget = 'wash' | 'garage' | 'accessories' | 'challan';
+export type BannerTarget = 'wash' | 'garage' | 'denting' | 'accessories';
 
-type Banner = { id: string; target: BannerTarget; source: ImageSourcePropType };
+type Banner = {
+  id: string;
+  target: BannerTarget;
+  source: ImageSourcePropType;
+  /** Login's top area is taller and narrower than Home's, so the sides get trimmed there: this is
+   *  where to keep in view across the width (0 = left edge, 1 = right edge). Home ignores it. */
+  loginX: number;
+};
 
-// Banners from the Figma library, challan first. Login shows the same set.
+// Paint, products and accessories first, then washing and servicing. Login shows the same set.
 export const BANNERS: Banner[] = [
-  { id: 'challan', target: 'challan', source: require('../../../assets/home/banner-2.jpg') },
-  { id: 'wash', target: 'wash', source: require('../../../assets/home/banner-wash.jpg') },
-  { id: 'servicing', target: 'garage', source: require('../../../assets/home/banner-servicing.jpg') },
-  { id: 'shampoo', target: 'accessories', source: require('../../../assets/home/banner-foam-shampoo.jpg') },
-  { id: 'road', target: 'wash', source: require('../../../assets/home/banner-road.jpg') },
-  { id: 'wash-99', target: 'wash', source: require('../../../assets/home/banner-wash99.jpg') },
+  {
+    id: 'denting-painting',
+    target: 'denting',
+    source: require('../../../assets/home/banner-denting-painting.jpg'),
+    loginX: 0.85,
+  },
+  {
+    id: 'care-products',
+    target: 'accessories',
+    source: require('../../../assets/home/banner-care-products.jpg'),
+    loginX: 0.55,
+  },
+  {
+    id: 'accessories',
+    target: 'accessories',
+    source: require('../../../assets/home/banner-accessories.jpg'),
+    loginX: 0.55,
+  },
+  { id: 'car-wash', target: 'wash', source: require('../../../assets/home/banner-car-wash.jpg'), loginX: 0.95 },
+  {
+    id: 'interior-cleaning',
+    target: 'wash',
+    source: require('../../../assets/home/banner-interior-cleaning.jpg'),
+    loginX: 1,
+  },
+  {
+    id: 'exterior-detailing',
+    target: 'wash',
+    source: require('../../../assets/home/banner-exterior-detailing.jpg'),
+    loginX: 0.9,
+  },
+  { id: 'car-service', target: 'garage', source: require('../../../assets/home/banner-car-service.jpg'), loginX: 0.95 },
 ];
 
 const SLIDE_MS = 4500;
