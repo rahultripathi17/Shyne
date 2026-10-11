@@ -60,9 +60,9 @@ const IMG = {
 export const SAMPLE_BOOKINGS: BookingItem[] = [
   // ——— Washes ———
   {
-    id: 'w1', vertical: 'washes', ref: '#HW-28491', status: 'Service started', tone: 'progress',
+    id: 'w1', vertical: 'washes', ref: '#HW-28491', status: 'Ongoing', tone: 'progress',
     eyebrow: 'Three-time wash', title: 'Ceramic Maintenance Wash', meta: 'Honda WR-V · MH 31 AX 4021',
-    note: '2 add-ons included', addOns: [{ name: 'Liquid Wax Polish', qty: 1 }, { name: 'Microfiber Towel', qty: 2 }],
+    note: '3 add-ons included', addOns: [{ name: 'Liquid Wax Polish', qty: 1 }, { name: 'Microfiber Towel', qty: 2 }, { name: 'Tyre Shine', qty: 1 }],
     when: { icon: 'calendar', title: 'Today, 11 Oct · 11:15 AM', sub: 'Home, Nagpur' },
     placed: 'Booked 08 Oct · 8:15 AM', amount: 1249, action: 'Track service', primary: true, history: false,
   },
@@ -107,21 +107,21 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
   // ——— Society Pack ———
   {
     id: 's1', vertical: 'society', ref: '#SP-10384', status: 'Active', tone: 'active',
-    eyebrow: 'Quarterly package', title: 'Quarterly Premium Wash', meta: 'Audi A3 · Vision Workspace',
+    eyebrow: 'Quarterly package', title: 'Quarterly Premium Wash', meta: 'Audi A3 · MH 31 AA 1111',
     usage: { left: 7, total: 12, label: 'washes remaining' },
     when: { icon: 'calendar', title: 'Next wash: Mon, 12 Oct · 7:30 AM', sub: 'Vision Workspace, Nagpur' },
     placed: 'Purchased 08 Oct · 10:00 AM', amount: 1489, action: 'Track services', primary: true, history: false,
   },
   {
     id: 's2', vertical: 'society', ref: '#SP-10365', status: 'Active', tone: 'active',
-    eyebrow: 'Monthly package', title: 'Premium Society Wash', meta: 'Honda City · Heritage Society',
+    eyebrow: 'Monthly package', title: 'Premium Society Wash', meta: 'Honda City · MH 31 CX 1234',
     usage: { left: 3, total: 4, label: 'washes remaining' },
     when: { icon: 'calendar', title: 'Next wash: Tue, 13 Oct · 8:00 AM', sub: 'Heritage Society, Pune' },
     placed: 'Purchased 28 Sep · 10:00 AM', amount: 969, action: 'View plan', primary: false, history: false,
   },
   {
     id: 's3', vertical: 'society', ref: '#SP-09520', status: 'Expired', tone: 'closed',
-    eyebrow: 'Monthly package', title: 'Essential Society Wash', meta: 'Audi A3 · Vision Workspace',
+    eyebrow: 'Monthly package', title: 'Essential Society Wash', meta: 'Audi A3 · MH 31 AA 1111',
     usage: { left: 0, total: 4, label: 'washes remaining' },
     when: { icon: 'receipt', title: 'Ended Wed, 30 Sep', sub: 'Vision Workspace, Nagpur' },
     placed: 'Purchased 01 Sep · 8:00 AM', amount: 849, action: 'Renew plan', primary: true, history: true,
@@ -163,7 +163,7 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
   },
   {
     id: 'b2', vertical: 'bundles', ref: '#BL-12931', status: 'In use', tone: 'active',
-    eyebrow: 'Monthly package', title: 'Monthly Unlimited Wash', meta: 'Honda City · Active plan', note: '1 wash already scheduled',
+    eyebrow: 'Monthly package', title: 'Monthly Unlimited Wash', meta: 'Honda City · MH 31 CX 1234', note: '1 wash already scheduled',
     when: { icon: 'calendar', title: 'Next wash: Mon, 12 Oct · 8:30 AM', sub: 'Valid until 10 Nov, 2026' },
     placed: 'Purchased 01 Oct · 10:00 AM', amount: 2499, action: 'Track booking', primary: true, history: false,
   },
@@ -306,6 +306,7 @@ const STEP_BY_STATUS: Record<string, number> = {
   Assigned: 1,
   'On the way': 1,
   'Service started': 2,
+  Ongoing: 2,
   Scheduled: 0,
   'In progress': 2,
   Completed: 9,

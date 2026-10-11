@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { setStatusBarStyle } from 'expo-status-bar';
 import { type ComponentProps, useCallback, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, type ImageSourcePropType, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookingSheet } from '../../components/BookingSheet';
@@ -22,6 +22,30 @@ import { opensDetails, TONES, useAllBookings } from '../../lib/bookings';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
+// Service pictures for the card: square-padded versions of the wide artwork, so they fill the tile.
+const SERVICE_ART: Partial<Record<VerticalKey, ImageSourcePropType>> = {
+  washes: require('../../../assets/home/v2/wash-square.png'),
+  garage: require('../../../assets/home/v2/garage-square.png'),
+  products: require('../../../assets/home/v2/accessories-square.png'),
+};
+/** Wide pictures look small in a square, so they're drawn a little larger and clipped softly. */
+const WIDE_ART = new Set<ImageSourcePropType>([
+  ...Object.values(SERVICE_ART),
+  require('../../../assets/home/challan-check.png'),
+  require('../../../assets/home/connect-qr.png'),
+]);
+
+// What the line under the title describes: the vehicle, or the items in an order.
+const META_ICON: Record<VerticalKey, IconName> = {
+  washes: 'car-outline',
+  society: 'car-outline',
+  bundles: 'car-outline',
+  garage: 'car-outline',
+  challans: 'car-outline',
+  products: 'cube-outline',
+  qr: 'qr-code-outline',
+};
+
 const WHEN_ICON: Record<BookingItem['when']['icon'], IconName> = {
   calendar: 'calendar-clear-outline',
   truck: 'cube-outline',
@@ -29,12 +53,15 @@ const WHEN_ICON: Record<BookingItem['when']['icon'], IconName> = {
   pickup: 'car-outline',
 };
 
-/** Status as a tag attached to the card's top-right corner. */
-function StatusTag({ label, tone }: { label: string; tone: Tone }) {
+/** Status as a strip tucked into the card's top-right corner. */
+function StatusStrip({ label, tone }: { label: string; tone: Tone }) {
   const t = TONES[tone];
   return (
-    <View style={[styles.tag, { backgroundColor: t.bg }]}>
-      <Text style={[styles.tagText, { color: t.fg }]}>{label}</Text>
+    <View style={[styles.pill, { backgroundColor: t.bg }]}>
+      <View style={[styles.pillDot, { backgroundColor: t.fg }]} />
+      <Text style={[styles.pillText, { color: t.fg }]} numberOfLines={1}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -48,24 +75,22 @@ function BookingCard({
   onAction: (item: BookingItem) => void;
   onSchedule: (item: BookingItem) => void;
 }) {
-  const vertical = VERTICALS.find((v) => v.key === item.vertical) ?? VERTICALS[0];
   const used = item.usage ? item.usage.total - item.usage.left : 0;
+  const vertical = VERTICALS.find((v) => v.key === item.vertical) ?? VERTICALS[0];
+  const art = item.image ?? SERVICE_ART[item.vertical] ?? vertical.image;
 
   return (
     <View style={styles.card}>
-      <StatusTag label={item.status} tone={item.tone} />
+      <StatusStrip label={item.status} tone={item.tone} />
 
-      {/* 1 service · 2 vehicle · 3 type */}
-      <Pressable onPress={() => onAction(item)} style={styles.main} accessibilityRole="button" accessibilityLabel={item.title}>
-        <View style={styles.thumb}>
-          <Image source={item.image ?? vertical.image} resizeMode="contain" style={styles.thumbImg} />
+      {/* What: service picture, name and type */}
+      <Pressable onPress={() => onAction(item)} style={styles.head} accessibilityRole="button" accessibilityLabel={item.title}>
+        <View style={styles.art}>
+          <Image source={art} resizeMode="contain" style={WIDE_ART.has(art) ? styles.artImgWide : styles.artImg} />
         </View>
-        <View style={styles.mainText}>
+        <View style={styles.headText}>
           <Text style={styles.title} numberOfLines={2}>
             {item.title}
-          </Text>
-          <Text style={styles.meta} numberOfLines={1}>
-            {item.meta}
           </Text>
           <Text style={styles.typeText} numberOfLines={1}>
             {item.eyebrow}
@@ -87,24 +112,31 @@ function BookingCard({
         </View>
       )}
 
-      {/* When & where — opens the journey */}
+      {/* For whom, where, when — one tappable box that opens the journey */}
       <Pressable
         onPress={() => onSchedule(item)}
-        style={({ pressed }) => [styles.when, pressed && { backgroundColor: '#EEF0F3' }]}
+        style={({ pressed }) => [styles.info, pressed && { backgroundColor: '#EEF0F3' }]}
         accessibilityRole="button"
-        accessibilityLabel={`${item.when.title}, ${item.when.sub}. See journey`}
+        accessibilityLabel={`${item.meta}. ${item.when.sub}. ${item.when.title}. See journey`}
       >
-        <View style={styles.whenLine}>
-          <Ionicons name={WHEN_ICON[item.when.icon]} size={16} color={ink.text} />
-          <Text style={styles.whenTitle} numberOfLines={1}>
-            {item.when.title}
+        <View style={styles.infoRow}>
+          <Ionicons name={META_ICON[item.vertical]} size={16} color={ink.muted} />
+          <Text style={styles.infoText} numberOfLines={1}>
+            {item.meta}
           </Text>
         </View>
-        <View style={styles.whenLine}>
+        <View style={styles.infoRow}>
           <Ionicons name={item.subIsNote ? 'information-circle-outline' : 'location-outline'} size={16} color={ink.muted} />
-          <Text style={styles.whenSub} numberOfLines={1}>
+          <Text style={styles.infoText} numberOfLines={1}>
             {item.when.sub}
           </Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Ionicons name={WHEN_ICON[item.when.icon]} size={16} color={ink.text} />
+          <Text style={styles.dateText} numberOfLines={1}>
+            {item.when.title}
+          </Text>
+          <Ionicons name="chevron-forward" size={15} color={ink.faint} />
         </View>
       </Pressable>
 
@@ -260,7 +292,7 @@ export default function BookingsScreen() {
               )}
             </View>
           ) : (
-            <View style={{ gap: 14 }}>
+            <View style={{ gap: 16 }}>
               {list.map((item) => (
                 <BookingCard key={item.id} item={item} onAction={onAction} onSchedule={setOpen} />
               ))}
@@ -404,72 +436,111 @@ const styles = StyleSheet.create({
     color: ink.text,
   },
   body: {
-    paddingHorizontal: 14,
-    paddingTop: 6,
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
   card: {
-    borderRadius: 16,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#ECEDF1',
+    borderColor: '#EBECF0',
+    shadowColor: '#0B0B0F',
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
     overflow: 'hidden',
   },
-  tag: {
+  head: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingTop: 30,
+  },
+  art: {
+    width: 72,
+    height: 72,
+    borderRadius: 14,
+    backgroundColor: '#F4F5F7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  artImg: {
+    width: 60,
+    height: 60,
+  },
+  artImgWide: {
+    width: 92,
+    height: 92,
+  },
+  headText: {
+    flex: 1,
+    gap: 4,
+  },
+  pill: {
     position: 'absolute',
     top: 0,
     right: 0,
     zIndex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderBottomLeftRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingLeft: 12,
+    paddingRight: 14,
+    paddingVertical: 6,
+    borderBottomLeftRadius: 14,
   },
-  tagText: {
+  pillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  pillText: {
     fontFamily: fonts.bold,
     fontSize: 11.5,
   },
-  main: {
+  info: {
+    gap: 10,
+    marginHorizontal: 16,
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#F7F8FA',
+  },
+  infoRow: {
     flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingTop: 16,
-  },
-  thumb: {
-    width: 68,
-    height: 68,
-    borderRadius: 14,
-    backgroundColor: '#F6F7F9',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 10,
   },
-  thumbImg: {
-    width: 56,
-    height: 52,
-  },
-  mainText: {
+  infoText: {
     flex: 1,
-    paddingRight: 70,
-  },
-  title: {
-    fontFamily: fonts.bold,
-    fontSize: 15.5,
-    lineHeight: 20,
-    color: ink.text,
-  },
-  meta: {
-    marginTop: 2,
     fontFamily: fonts.medium,
-    fontSize: 12.5,
+    fontSize: 13.5,
     color: ink.label,
   },
+  dateText: {
+    flex: 1,
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: ink.text,
+  },
+  title: {
+    fontFamily: fonts.extraBold,
+    fontSize: 18,
+    lineHeight: 23,
+    letterSpacing: -0.3,
+    color: ink.text,
+  },
   typeText: {
-    marginTop: 3,
     fontFamily: fonts.medium,
-    fontSize: 12,
+    fontSize: 13,
     color: ink.muted,
   },
   // A plain, quiet button: the card's one action.
   cta: {
-    height: 36,
+    height: 38,
     paddingHorizontal: 16,
     borderRadius: 10,
     borderWidth: 1,
@@ -484,14 +555,14 @@ const styles = StyleSheet.create({
     color: ink.text,
   },
   usage: {
-    marginHorizontal: 14,
+    marginHorizontal: 16,
     marginTop: 12,
     gap: 6,
   },
   usageTrack: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#F1F2F5',
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#ECEDF1',
     overflow: 'hidden',
   },
   usageFill: {
@@ -508,38 +579,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: ink.text,
   },
-  when: {
-    gap: 6,
-    marginHorizontal: 14,
-    marginTop: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#F7F8FA',
-  },
-  whenLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  whenTitle: {
-    flex: 1,
-    fontFamily: fonts.bold,
-    fontSize: 14,
-    color: ink.text,
-  },
-  whenSub: {
-    flex: 1,
-    fontFamily: fonts.medium,
-    fontSize: 13,
-    color: ink.label,
-  },
   alert: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginHorizontal: 14,
-    marginTop: 8,
+    marginHorizontal: 16,
+    marginTop: 10,
   },
   alertText: {
     fontFamily: fonts.bold,
@@ -550,21 +595,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginTop: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ECEDF1',
+    borderTopColor: '#E6E7EB',
   },
   placed: {
-    marginTop: 1,
+    marginTop: 2,
     fontFamily: fonts.medium,
-    fontSize: 11.5,
+    fontSize: 12,
     color: ink.muted,
   },
   amount: {
     fontFamily: fonts.extraBold,
-    fontSize: 16,
+    fontSize: 18,
     color: ink.text,
   },
   due: {
