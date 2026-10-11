@@ -54,7 +54,9 @@ export default function EditProfileScreen() {
   const toast = useToast();
 
   const [name, setName] = useState(store.name ?? '');
-  const [gender, setGender] = useState<Gender | undefined>(store.gender === 'Male' || store.gender === 'Female' ? store.gender : undefined);
+  const [gender, setGender] = useState<Gender | undefined>(
+    store.gender === 'Male' || store.gender === 'Female' ? store.gender : undefined,
+  );
   const [dob, setDob] = useState(store.dob ?? '');
   const [photoUri, setPhotoUri] = useState(store.photoUri);
   const [failedPhotoUri, setFailedPhotoUri] = useState<string>();
@@ -123,7 +125,12 @@ export default function EditProfileScreen() {
       <TopBar title="Edit profile" topInset={insets.top} onBack={() => router.back()} />
       <ScrollView {...noBounce} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.body}>
         {/* Photo */}
-        <Pressable onPress={pickPhoto} style={styles.photoWrap} accessibilityRole="button" accessibilityLabel="Change profile photo">
+        <Pressable
+          onPress={pickPhoto}
+          style={styles.photoWrap}
+          accessibilityRole="button"
+          accessibilityLabel="Change profile photo"
+        >
           <View style={styles.photo}>
             {photoUri && photoUri !== failedPhotoUri ? (
               <Image source={{ uri: photoUri }} style={styles.photoImg} onError={() => setFailedPhotoUri(photoUri)} />
@@ -160,40 +167,59 @@ export default function EditProfileScreen() {
           </View>
         </View>
 
-        <Text style={styles.label}>Email & sign-in</Text>
+        <Text style={styles.label}>Login without OTP</Text>
         <View style={styles.accountCard}>
           {selectedProvider ? (
             <View style={styles.accountRow}>
               <View style={styles.accountMark}>
-                <Ionicons name={selectedProvider === 'apple' ? 'logo-apple' : 'logo-google'} size={22} color={ink.text} />
+                <Ionicons
+                  name={selectedProvider === 'apple' ? 'logo-apple' : 'logo-google'}
+                  size={22}
+                  color={ink.text}
+                />
               </View>
               <View style={styles.accountCopy}>
                 <Text style={styles.accountEmail}>{linkedEmail}</Text>
-                <Text style={styles.accountProvider}>Connected with {SSO_LABEL[selectedProvider]}</Text>
+                <Text style={styles.accountProvider}>
+                  One-tap login with {selectedProvider === 'apple' ? 'Apple ID' : 'Google'} · no OTP
+                </Text>
               </View>
-              <Pressable onPress={() => setChangingAccount((value) => !value)} style={styles.changeAccount} accessibilityRole="button" accessibilityLabel="Change sign-in account">
+              <Pressable
+                onPress={() => setChangingAccount((value) => !value)}
+                style={styles.changeAccount}
+                accessibilityRole="button"
+                accessibilityLabel="Change sign-in account"
+              >
                 <Text style={styles.changeAccountText}>{changingAccount ? 'Cancel' : 'Change'}</Text>
               </Pressable>
             </View>
           ) : (
             <>
-              <Text style={styles.accountTitle}>Connect an account</Text>
-              <Text style={styles.accountDescription}>Choose how you’d like to sign in.</Text>
+              <Text style={styles.accountTitle}>Link your email</Text>
+              <Text style={styles.accountDescription}>Log in with one tap next time — no OTP.</Text>
             </>
           )}
           {(!selectedProvider || changingAccount) && (
             <View style={[styles.accountOptions, !!selectedProvider && styles.accountOptionsSeparated]}>
-              <SsoButton provider="google" verb="Connect with" onPress={() => void connect('google')} />
-              {Platform.OS === 'ios' && <SsoButton provider="apple" verb="Connect with" onPress={() => void connect('apple')} />}
+              <SsoButton provider="google" verb="Continue with" onPress={() => void connect('google')} />
+              {Platform.OS === 'ios' && (
+                <SsoButton provider="apple" verb="Continue with" onPress={() => void connect('apple')} />
+              )}
             </View>
           )}
           {selectedProvider && (
             <View style={styles.removeEmailArea}>
               {confirmRemoveEmail ? (
                 <>
-                  <Text style={styles.removeEmailConfirm}>Remove this email? Your mobile number will stay on your profile.</Text>
+                  <Text style={styles.removeEmailConfirm}>
+                    Remove this email? Your mobile number will stay on your profile.
+                  </Text>
                   <View style={styles.removeEmailActions}>
-                    <Pressable onPress={() => setConfirmRemoveEmail(false)} style={styles.keepEmailButton} accessibilityRole="button">
+                    <Pressable
+                      onPress={() => setConfirmRemoveEmail(false)}
+                      style={styles.keepEmailButton}
+                      accessibilityRole="button"
+                    >
                       <Text style={styles.keepEmailText}>Keep email</Text>
                     </Pressable>
                     <Pressable onPress={removeEmail} style={styles.removeEmailButton} accessibilityRole="button">
@@ -203,7 +229,10 @@ export default function EditProfileScreen() {
                 </>
               ) : (
                 <Pressable
-                  onPress={() => { setChangingAccount(false); setConfirmRemoveEmail(true); }}
+                  onPress={() => {
+                    setChangingAccount(false);
+                    setConfirmRemoveEmail(true);
+                  }}
                   style={styles.removeEmailLink}
                   accessibilityRole="button"
                 >

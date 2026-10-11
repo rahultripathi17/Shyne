@@ -2,7 +2,17 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ink } from '../../components/home/homeTheme';
@@ -16,7 +26,7 @@ import { signInWith, SSO_PROVIDERS, type SsoProvider, ssoErrorMessage } from '..
 import { useAppStore } from '../../store/AppStore';
 
 const LENGTH = 4;
-const RESEND_SECONDS = 30;
+const RESEND_SECONDS = 10;
 const WHATSAPP_GREEN = '#25D366';
 
 type Channel = 'sms' | 'whatsapp';
@@ -28,9 +38,13 @@ export default function OtpScreen() {
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
   const [channel, setChannel] = useState<Channel>('sms');
   const inputRef = useRef<TextInput>(null);
+  const [typing, setTyping] = useState(false);
 
   useEffect(() => {
-    if (seconds <= 0) return;
+    if (seconds <= 0) {
+      Keyboard.dismiss();
+      return;
+    }
     const t = setTimeout(() => setSeconds((s) => s - 1), 1000);
     return () => clearTimeout(t);
   }, [seconds]);
@@ -75,79 +89,98 @@ export default function OtpScreen() {
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <OnboardingHeader title="OTP Verification" topInset={insets.top} />
-      <View style={styles.body}>
-        <OnboardingTitle title="Enter verification code" />
-        <View style={styles.sentRow}>
-          {channel === 'whatsapp' && <Ionicons name="logo-whatsapp" size={16} color={WHATSAPP_GREEN} />}
-          <Text style={styles.sent}>
-            {channel === 'whatsapp' ? 'We’ve sent a 4-digit code on WhatsApp to ' : 'We’ve sent a 4-digit code to '}
-            <Text style={styles.phone}>{phone || 'your number'}</Text>
-          </Text>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Ionicons name="pencil" size={15} color={ink.text} />
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable onPress={Keyboard.dismiss} accessible={false}>
+          <OnboardingTitle title="Enter verification code" />
+          <View style={styles.sentRow}>
+            {channel === 'whatsapp' && <Ionicons name="logo-whatsapp" size={16} color={WHATSAPP_GREEN} />}
+            <Text style={styles.sent}>
+              {channel === 'whatsapp' ? 'We’ve sent a 4-digit code on WhatsApp to ' : 'We’ve sent a 4-digit code to '}
+              <Text style={styles.phone}>{phone || 'your number'}</Text>
+            </Text>
+            <Pressable onPress={() => router.back()} hitSlop={8}>
+              <Ionicons name="pencil" size={15} color={ink.text} />
+            </Pressable>
+          </View>
+
+          <Pressable
+            onPress={() => (typing ? Keyboard.dismiss() : inputRef.current?.focus())}
+            style={styles.boxes}
+            accessibilityLabel="Verification code"
+            accessibilityHint={typing ? 'Closes the keyboard' : 'Opens the keyboard'}
+          >
+            {Array.from({ length: LENGTH }, (_, i) => {
+              const filled = i < code.length;
+              const active = typing && i === code.length;
+              return (
+                <View key={i} style={[styles.box, filled && styles.boxFilled, active && styles.boxActive]}>
+                  <Text style={styles.digit}>{code[i] ?? ''}</Text>
+                </View>
+              );
+            })}
           </Pressable>
-        </View>
+          <TextInput
+            ref={inputRef}
+            value={code}
+            onChangeText={onChange}
+            keyboardType="number-pad"
+            textContentType="oneTimeCode"
+            autoComplete="sms-otp"
+            autoFocus
+            onFocus={() => setTyping(true)}
+            onBlur={() => setTyping(false)}
+            maxLength={LENGTH}
+            style={styles.hidden}
+          />
 
-        <Pressable
-          onPress={() => inputRef.current?.focus()}
-          style={styles.boxes}
-          accessibilityLabel="Verification code"
-        >
-          {Array.from({ length: LENGTH }, (_, i) => {
-            const filled = i < code.length;
-            const active = i === code.length;
-            return (
-              <View key={i} style={[styles.box, filled && styles.boxFilled, active && styles.boxActive]}>
-                <Text style={styles.digit}>{code[i] ?? ''}</Text>
+          {seconds > 0 ? (
+            <Text style={styles.timer}>
+              Didn’t get it? Resend in <Text style={styles.timerStrong}>0:{String(seconds).padStart(2, '0')}</Text>
+            </Text>
+          ) : (
+            <FadeIn style={styles.options}>
+              <Text style={styles.optionsLabel}>Didn’t get the code?</Text>
+              <View style={styles.resendRow}>
+                <Pressable
+                  onPress={() => resend('whatsapp')}
+                  style={({ pressed }) => [styles.resend, pressed && styles.resendPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Get the code on WhatsApp"
+                >
+                  <Ionicons name="logo-whatsapp" size={18} color={WHATSAPP_GREEN} />
+                  <Text style={styles.resendText}>WhatsApp</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => resend('sms')}
+                  style={({ pressed }) => [styles.resend, pressed && styles.resendPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Resend the code by SMS"
+                >
+                  <Ionicons name="chatbubble-ellipses-outline" size={17} color={ink.text} />
+                  <Text style={styles.resendText}>Resend SMS</Text>
+                </Pressable>
               </View>
-            );
-          })}
+
+              {/* Still no code? Log in with the phone's own account instead. */}
+              <View style={styles.orRow}>
+                <View style={styles.orLine} />
+                <Text style={styles.orText}>or log in without OTP</Text>
+                <View style={styles.orLine} />
+              </View>
+              {SSO_PROVIDERS.map((provider) => (
+                <SsoButton key={provider} provider={provider} onPress={() => void sso(provider)} />
+              ))}
+              {ssoError ? <Text style={styles.ssoError}>{ssoError}</Text> : null}
+            </FadeIn>
+          )}
         </Pressable>
-        <TextInput
-          ref={inputRef}
-          value={code}
-          onChangeText={onChange}
-          keyboardType="number-pad"
-          textContentType="oneTimeCode"
-          autoComplete="sms-otp"
-          autoFocus
-          maxLength={LENGTH}
-          style={styles.hidden}
-        />
-
-        {seconds > 0 ? (
-          <Text style={styles.timer}>
-            Didn’t get it? Resend in <Text style={styles.timerStrong}>0:{String(seconds).padStart(2, '0')}</Text>
-          </Text>
-        ) : (
-          <FadeIn style={styles.options}>
-            <Text style={styles.optionsLabel}>Didn’t get the code?</Text>
-            <Pressable
-              onPress={() => resend('whatsapp')}
-              style={({ pressed }) => [styles.whatsapp, pressed && { opacity: 0.85 }]}
-              accessibilityRole="button"
-            >
-              <Ionicons name="logo-whatsapp" size={20} color="#FFFFFF" />
-              <Text style={styles.whatsappText}>Get code on WhatsApp</Text>
-            </Pressable>
-            <Pressable onPress={() => resend('sms')} hitSlop={8} style={styles.smsLink} accessibilityRole="button">
-              <Ionicons name="chatbubble-ellipses-outline" size={16} color={ink.text} />
-              <Text style={styles.smsText}>Resend by SMS</Text>
-            </Pressable>
-
-            {/* Still no code? Skip OTP and sign in with the phone's own account. */}
-            <View style={styles.orRow}>
-              <View style={styles.orLine} />
-              <Text style={styles.orText}>or</Text>
-              <View style={styles.orLine} />
-            </View>
-            {SSO_PROVIDERS.map((provider) => (
-              <SsoButton key={provider} provider={provider} onPress={() => void sso(provider)} />
-            ))}
-            {ssoError ? <Text style={styles.ssoError}>{ssoError}</Text> : null}
-          </FadeIn>
-        )}
-      </View>
+      </ScrollView>
 
       <ActionFooter bottomInset={insets.bottom}>
         <PrimaryButton label="Verify" onPress={() => verify(code)} disabled={!complete} />
@@ -161,8 +194,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginTop: 6,
-    marginBottom: 4,
+    marginTop: 10,
+    marginBottom: 2,
   },
   orLine: {
     flex: 1,
@@ -180,14 +213,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: ink.red,
   },
+  flex: {
+    flex: 1,
+  },
+  resendRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  resend: {
+    flex: 1,
+    height: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    borderRadius: 23,
+    borderWidth: 1,
+    borderColor: '#E2E4E8',
+    backgroundColor: '#FFFFFF',
+  },
+  resendPressed: {
+    backgroundColor: '#F6F7F9',
+  },
+  resendText: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: ink.text,
+  },
   screen: {
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
   body: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 4,
+    paddingBottom: 24,
   },
   sentRow: {
     flexDirection: 'row',
@@ -256,31 +317,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     fontSize: 14,
     color: ink.muted,
-  },
-  whatsapp: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: WHATSAPP_GREEN,
-  },
-  whatsappText: {
-    fontFamily: fonts.extraBold,
-    fontSize: 15,
-    color: '#FFFFFF',
-  },
-  smsLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    height: 40,
-  },
-  smsText: {
-    fontFamily: fonts.bold,
-    fontSize: 14,
-    color: ink.text,
   },
 });

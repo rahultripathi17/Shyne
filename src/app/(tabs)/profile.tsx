@@ -340,14 +340,16 @@ export default function ProfileScreen() {
                 onPress={() => router.push('/edit-profile')}
                 style={styles.link}
                 accessibilityRole="button"
-                accessibilityLabel="Connect an account"
+                accessibilityLabel="Log in without OTP: connect an account"
               >
                 <View style={styles.linkIcon}>
-                  <Ionicons name="shield-checkmark-outline" size={20} color={ink.text} />
+                  <Ionicons name="key-outline" size={20} color={ink.text} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.linkTitle}>Connect your account</Text>
-                  <Text style={styles.linkSub}>Choose a sign-in method</Text>
+                  <Text style={styles.linkTitle}>Log in without OTP</Text>
+                  <Text style={styles.linkSub}>
+                    {Platform.OS === 'ios' ? 'Link your Apple ID or Google email' : 'Link your Google email'}
+                  </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={ink.faint} />
               </Pressable>
