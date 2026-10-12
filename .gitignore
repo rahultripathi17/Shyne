@@ -43,3 +43,6 @@ yarn-error.*
 # browser-test output
 .playwright-mcp/
 .shots/
+
+# binaries
+*.apk
