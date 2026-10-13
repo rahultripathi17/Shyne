@@ -223,7 +223,7 @@ function Lead({ item, tone }: { item: DockItem; tone: DockTone }) {
     return <Image source={STARTER_PACK} style={styles.packArt} resizeMode="contain" accessibilityIgnoresInvertColors />;
   }
 
-  // Expert moving or at the door: solid disc glowing out in waves — the "live" moment.
+  // Expert moving or at the door: solid disc with rings rippling out — the "live" moment.
   if (item.kind === 'live' && (item.stage === 'on_the_way' || item.stage === 'arrived')) {
     const arrived = item.stage === 'arrived';
     const glow = arrived ? ink.yellowDeep : GREEN;
@@ -232,7 +232,11 @@ function Lead({ item, tone }: { item: DockItem; tone: DockTone }) {
         <Pulse color={glow} />
         <Pulse color={glow} delay={800} />
         <View style={[styles.disc, { backgroundColor: arrived ? ink.yellow : GREEN }]}>
-          {arrived ? <Ionicons name="location" size={17} color={ink.text} /> : <MovingArrow />}
+          {arrived ? (
+            <Ionicons name="location" size={17} color={ink.text} />
+          ) : (
+            <Ionicons name="navigate" size={17} color="#FFFFFF" style={styles.arrow} />
+          )}
         </View>
       </View>
     );
@@ -270,40 +274,6 @@ function Detail({ item, text, tone }: { item: DockItem; text: string; tone: Dock
 // ——— Motion ———
 
 /** A ring rippling out of the icon — "happening right now". Two, staggered, read as a live signal. */
-/** The navigation arrow keeps edging forward (up-right) and settling back, with a soft blink. */
-function MovingArrow() {
-  const t = useAnimatedValue(0);
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(t, { toValue: 1, duration: 700, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(t, { toValue: 0, duration: 700, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-        Animated.delay(200),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [t]);
-  const shift = t.interpolate({ inputRange: [0, 1], outputRange: [0, 1.6] });
-  return (
-    <Animated.View
-      style={[
-        styles.arrow,
-        {
-          opacity: t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.72] }),
-          transform: [
-            { translateX: shift },
-            { translateY: Animated.multiply(shift, -1) },
-            { scale: t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
-          ],
-        },
-      ]}
-    >
-      <Ionicons name="navigate" size={17} color="#FFFFFF" />
-    </Animated.View>
-  );
-}
-
 function Pulse({ color, delay = 0 }: { color: string; delay?: number }) {
   const t = useAnimatedValue(0);
   useEffect(() => {
@@ -323,9 +293,9 @@ function Pulse({ color, delay = 0 }: { color: string; delay?: number }) {
       style={[
         styles.pulse,
         {
-          backgroundColor: color,
-          opacity: t.interpolate({ inputRange: [0, 0.1, 1], outputRange: [0, 0.45, 0] }),
-          transform: [{ scale: t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] }) }],
+          borderColor: color,
+          opacity: t.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.9, 0] }),
+          transform: [{ scale: t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }],
         },
       ]}
     />
@@ -480,6 +450,7 @@ const styles = StyleSheet.create({
   pulse: {
     ...StyleSheet.absoluteFill,
     borderRadius: RING / 2,
+    borderWidth: 2,
   },
   // The arrow's weight sits ~1pt up-right of its box; nudge it back so it looks centred in the disc.
   arrow: {
