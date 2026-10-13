@@ -13,10 +13,10 @@ import { PressableScale } from '../../components/home/motion';
 import { HooraMark } from '../../components/HooraLogo';
 import { HOORA_LOGO_XML } from '../../components/hooraLogoXml';
 import { useTabBarSpace } from '../../components/tabBarSpace';
-import { CarLoader } from '../../components/CarLoader';
 import { PullSpinner } from '../../components/home/PullSpinner';
 import { fonts, useAnimatedValue } from '../../components/theme';
 import { Toast, useToast } from '../../components/Toast';
+import { Vehicle360Loader } from '../../components/Vehicle360Loader';
 import { useAppStore } from '../../store/AppStore';
 
 // Profile header, compact membership status, quick links, and account menu.
@@ -133,7 +133,7 @@ export default function ProfileScreen() {
   const bottomSpace = useTabBarSpace();
   const { name, email, phone, photoUri, blackMember, linked } = useAppStore();
   const [failedPhotoUri, setFailedPhotoUri] = useState<string>();
-  // Pull to refresh like Home; on release the screen turns white with the car loader for a few seconds.
+  // Pull to refresh like Home; on release the Vehicle 360 loading mark appears.
   const [waiting, setWaiting] = useState(false);
   const waitTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const startWait = () => {
@@ -397,7 +397,7 @@ export default function ProfileScreen() {
       {Platform.OS === 'ios' && (
         <PullSpinner scrollY={scrollY} refreshing={false} top={insets.top + 10} threshold={PULL_THRESHOLD} />
       )}
-      <CarLoader visible={waiting} />
+      <Vehicle360Loader visible={waiting} duration={WAIT_MS} />
     </View>
   );
 }
