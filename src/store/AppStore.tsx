@@ -1,13 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  createContext,
-  type ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 // App state, saved on the device so onboarding, the address and the garage survive restarts.
 // Swap for a backend (e.g. Supabase) once accounts are real.
@@ -56,6 +48,13 @@ export type Booking = {
 
 export type Gender = 'Male' | 'Female';
 
+export type DockPreview = {
+  /** The whole dock is switched off. */
+  off?: boolean;
+  /** Dock states switched off, by key (see DOCK_STATES). */
+  hidden?: string[];
+};
+
 type Persisted = {
   onboarded: boolean;
   phone: string;
@@ -71,13 +70,17 @@ type Persisted = {
   blackMember?: boolean;
   /** Sign-in accounts linked to this profile (Apple on iPhone, Google on Android). */
   linked?: { apple?: boolean; google?: boolean };
+  /** Preview build: booking dock above the nav — all on unless switched off in Configuration. */
+  dockPreview?: DockPreview;
   location: SavedLocation | null;
   cars: SavedCar[];
   selectedCarId?: string;
   bookings: Booking[];
 };
 
-type ProfilePatch = Partial<Pick<Persisted, 'name' | 'email' | 'emailRemoved' | 'gender' | 'dob' | 'photoUri' | 'blackMember' | 'linked'>>;
+type ProfilePatch = Partial<
+  Pick<Persisted, 'name' | 'email' | 'emailRemoved' | 'gender' | 'dob' | 'photoUri' | 'blackMember' | 'linked'>
+>;
 
 const EMPTY: Persisted = { onboarded: false, phone: '', location: null, cars: [], bookings: [] };
 type DemoProvider = 'apple' | 'google';
@@ -97,10 +100,7 @@ function migrateSavedProfile(saved: Partial<Persisted>): Partial<Persisted> {
   if (profile.name === 'Siddharth Jain' || (profile.onboarded && !profile.name)) {
     profile.name = DEMO_NAME;
   }
-  if (
-    profile.email === 'siddharth.jain@example.com' ||
-    profile.email === 'siddharth.jain@privaterelay.example.com'
-  ) {
+  if (profile.email === 'siddharth.jain@example.com' || profile.email === 'siddharth.jain@privaterelay.example.com') {
     profile.email = DEMO_EMAIL;
   }
   if (profile.onboarded) {
@@ -123,6 +123,7 @@ type AppState = Persisted & {
   setPhone: (phone: string) => void;
   activateDemoAccount: (provider?: DemoProvider) => void;
   setProfile: (patch: ProfilePatch) => void;
+  setDockPreview: (patch: DockPreview) => void;
   setLocation: (location: SavedLocation) => void;
   completeOnboarding: () => void;
   addCar: (car: Omit<SavedCar, 'id'>) => void;
@@ -167,18 +168,19 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       setPhone: (phone) => update(() => ({ phone })),
       activateDemoAccount: (provider) => update(() => demoIdentity(provider)),
       setProfile: (patch) => update(() => patch),
+      setDockPreview: (patch) => update((s) => ({ dockPreview: { ...s.dockPreview, ...patch } })),
       setLocation: (location) => update(() => ({ location })),
-      completeOnboarding: () => update((s) => ({
-        onboarded: true,
-        ...demoIdentity(s.linked?.apple ? 'apple' : 'google'),
-      })),
+      completeOnboarding: () =>
+        update((s) => ({
+          onboarded: true,
+          ...demoIdentity(s.linked?.apple ? 'apple' : 'google'),
+        })),
       addCar: (car) => {
         const id = newId();
         update((s) => ({ cars: [...s.cars, { ...car, id }], selectedCarId: id }));
       },
       selectCar: (id) => update(() => ({ selectedCarId: id })),
-      updateCar: (id, patch) =>
-        update((s) => ({ cars: s.cars.map((c) => (c.id === id ? { ...c, ...patch } : c)) })),
+      updateCar: (id, patch) => update((s) => ({ cars: s.cars.map((c) => (c.id === id ? { ...c, ...patch } : c)) })),
       removeCar: (id) =>
         update((s) => {
           const cars = s.cars.filter((c) => c.id !== id);

@@ -17,7 +17,7 @@ const vehicleName = (vehicle: SavedCar) =>
 
 /**
  * Quick switcher from Home: pick the vehicle for the next service. A vehicle without a number
- * gets a one-tap "Add number"; everything else (details, number, remove) lives on My Vehicles.
+ * gets a quiet "Add number" text nudge; everything else (details, number, remove) lives on My Vehicles.
  */
 export function VehicleSheet({ visible, onClose }: Props) {
   const { cars, selectedCar, selectCar } = useAppStore();
@@ -80,12 +80,13 @@ export function VehicleSheet({ visible, onClose }: Props) {
                       <Pressable
                         onPress={() => go({ pathname: '/vehicles', params: { id: vehicle.id, edit: '1' } })}
                         hitSlop={6}
-                        style={({ pressed }) => [styles.addChip, pressed && styles.pressed]}
+                        style={({ pressed }) => [styles.nudge, pressed && styles.pressed]}
                         accessibilityRole="button"
                         accessibilityLabel={`Add number for ${vehicleName(vehicle)}`}
                       >
-                        <Ionicons name="add" size={14} color={ink.text} />
-                        <Text style={styles.addChipText}>Add number</Text>
+                        {/* A quiet text nudge, not a boxed button: the row stays about choosing */}
+                        <Text style={styles.nudgeText}>Add number</Text>
+                        <Ionicons name="chevron-forward" size={11} color={ink.muted} />
                       </Pressable>
                     )}
                   </View>
@@ -170,20 +171,8 @@ const styles = StyleSheet.create({
   copy: { flex: 1, minWidth: 0, gap: 3 },
   name: { fontFamily: fonts.bold, fontSize: 15, color: ink.text },
   number: { fontFamily: fonts.semiBold, fontSize: 12.5, letterSpacing: 0.4, color: ink.muted },
-  addChip: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    height: 26,
-    paddingLeft: 8,
-    paddingRight: 10,
-    borderRadius: 7,
-    borderWidth: 1.2,
-    borderStyle: 'dashed',
-    borderColor: '#B4B7BF',
-  },
-  addChipText: { fontFamily: fonts.bold, fontSize: 12, color: ink.text },
+  nudge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 2 },
+  nudgeText: { fontFamily: fonts.semiBold, fontSize: 12, color: ink.muted },
   radio: {
     width: 22,
     height: 22,

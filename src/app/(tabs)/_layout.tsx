@@ -20,14 +20,14 @@ type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>
  * Screens pad their end via useTabBarSpace; touches outside the panel fall through.
  */
 function TabBarWithDock(props: TabBarProps) {
-  const items = useVisibleDock();
+  const entries = useVisibleDock();
   // Bookings already lists everything the dock would show.
-  const showDock = items.length > 0 && props.state.routes[props.state.index]?.name !== 'bookings';
+  const showDock = entries.length > 0 && props.state.routes[props.state.index]?.name !== 'bookings';
 
   return (
     <View pointerEvents="box-none" style={styles.overlay}>
       <View style={showDock && styles.panel}>
-        {showDock && <BookingDock items={items} />}
+        {showDock && <BookingDock entries={entries} />}
         <BottomTabBar {...props} merged={showDock} />
       </View>
     </View>

@@ -1,12 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import type { Tabs } from 'expo-router';
-import type { ComponentProps } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { type ComponentProps, useEffect } from 'react';
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ink } from './home/homeTheme';
-import { fonts } from './theme';
+import { fonts, useAnimatedValue } from './theme';
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -21,6 +21,9 @@ export const TAB_ICONS: Record<string, [IconName, IconName]> = {
 
 /** Height of the docked bar above the system navigation area. */
 export const BOTTOM_BAR_HEIGHT = 62;
+
+/** Idle tabs stay light so the selected one reads at a glance (the original Hoora nav grey). */
+const IDLE = '#8A8D95';
 
 /** The same docked bar and icon states on iOS, Android, and web. */
 export function BottomTabBar({ state, descriptors, navigation, merged }: TabBarProps & { merged?: boolean }) {
@@ -63,15 +66,37 @@ export function BottomTabBar({ state, descriptors, navigation, merged }: TabBarP
             accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
             style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
           >
-            <View style={[styles.marker, focused && styles.markerOn]} />
-            <Ionicons name={focused ? filled : outline} size={24} color={focused ? ink.text : '#62656B'} />
-            <Text style={[styles.label, focused && styles.labelOn]} numberOfLines={1}>
-              {label}
-            </Text>
+            <TabItem focused={focused} icon={focused ? filled : outline} label={label} />
           </Pressable>
         );
       })}
     </View>
+  );
+}
+
+/** Selecting a tab: the yellow line grows out from the centre and the icon gives a small spring pop. */
+function TabItem({ focused, icon, label }: { focused: boolean; icon: IconName; label: string }) {
+  const on = useAnimatedValue(focused ? 1 : 0);
+  const pop = useAnimatedValue(1);
+
+  useEffect(() => {
+    Animated.timing(on, { toValue: focused ? 1 : 0, duration: 220, useNativeDriver: true }).start();
+    if (focused) {
+      pop.setValue(0.82);
+      Animated.spring(pop, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 12 }).start();
+    }
+  }, [focused, on, pop]);
+
+  return (
+    <>
+      <Animated.View style={[styles.marker, { opacity: on, transform: [{ scaleX: on }] }]} />
+      <Animated.View style={{ transform: [{ scale: pop }] }}>
+        <Ionicons name={icon} size={24} color={focused ? ink.text : IDLE} />
+      </Animated.View>
+      <Text style={[styles.label, focused && styles.labelOn]} numberOfLines={1}>
+        {label}
+      </Text>
+    </>
   );
 }
 
@@ -113,9 +138,6 @@ const styles = StyleSheet.create({
     height: 3,
     borderBottomLeftRadius: 3,
     borderBottomRightRadius: 3,
-    backgroundColor: 'transparent',
-  },
-  markerOn: {
     backgroundColor: ink.yellow,
   },
   label: {
@@ -124,7 +146,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     includeFontPadding: false,
     textAlign: 'center',
-    color: '#62656B',
+    color: IDLE,
   },
   labelOn: {
     fontFamily: fonts.bold,

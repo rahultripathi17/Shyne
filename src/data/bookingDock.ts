@@ -2,8 +2,11 @@
 // bookings / cart / packs APIs. Raw fields in, copy out (see `dockCopy`), so the API only has to
 // send status and numbers.
 
-/** A booking happening today, in journey order. */
-export type LiveStage = 'finding' | 'assigned' | 'on_the_way' | 'arrived' | 'in_progress';
+/**
+ * Today's service, step by step: booked for today → expert on the way → expert at the car →
+ * washing. Only today's bookings appear in the dock; later days live in Bookings.
+ */
+export type LiveStage = 'scheduled' | 'on_the_way' | 'arrived' | 'in_progress';
 
 export type DockItem =
   | {
@@ -13,43 +16,29 @@ export type DockItem =
       service: string;
       vehicle: string;
       expert?: string;
-      /** Booked slot, e.g. "2:30 PM". */
+      /** Booked slot today, e.g. "2:30 PM". */
       slot: string;
       etaMin?: number;
       minutesLeft?: number;
       /** 0–1, how far along the journey is. */
       progress?: number;
-      /** Start code the customer reads out when the expert arrives. */
-      otp?: string;
+      /** Service end code — the customer shares it with the expert to close the service. */
+      endCode?: string;
     }
-  | { kind: 'payment'; id: string; service: string; amount: number }
   | { kind: 'rate'; id: string; service: string; expert: string }
-  | {
-      kind: 'upcoming';
-      id: string;
-      service: string;
-      vehicle: string;
-      day: string;
-      time: string;
-      /** Booked for today but the expert hasn't set out yet — track it, don't reschedule it. */
-      today?: boolean;
-    }
   | { kind: 'cart'; id: string; count: number }
   | { kind: 'pack'; id: string; pack: string; left: number; total: number; expiresInDays: number };
 
-export type DockTone = 'live' | 'attention' | 'neutral';
+export type DockTone = 'live' | 'neutral';
 
 export type DockCopy = {
   title: string;
   detail: string;
   cta?: string;
-  /** Reschedule is a soft action; everything else is the main next step. */
-  ctaSoft?: boolean;
   tone: DockTone;
   dismissible?: boolean;
 };
 
-const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** One status line first (what's happening), then one supporting line (what / who). */
@@ -58,14 +47,12 @@ export function dockCopy(item: DockItem): DockCopy {
     case 'live': {
       const who = item.expert ?? 'Your expert';
       switch (item.stage) {
-        case 'finding':
-          return { title: 'Finding your expert', detail: `${item.service} · ${item.slot}`, cta: 'View', tone: 'live' };
-        case 'assigned':
+        case 'scheduled':
           return {
-            title: `${who} is assigned`,
-            detail: `Arrives at ${item.slot} · ${item.service}`,
+            title: `Today · ${item.slot}`,
+            detail: `Expert starts soon · ${item.service}`,
             cta: 'Track',
-            tone: 'live',
+            tone: 'neutral',
           };
         case 'on_the_way':
           return {
@@ -77,9 +64,9 @@ export function dockCopy(item: DockItem): DockCopy {
         case 'arrived':
           return {
             title: `${who} has arrived`,
-            detail: item.otp ? `Share start code ${item.otp}` : item.service,
+            detail: item.endCode ? `Service end code ${item.endCode}` : item.service,
             cta: 'Track',
-            tone: 'attention',
+            tone: 'live',
           };
         case 'in_progress':
           return {
@@ -91,13 +78,6 @@ export function dockCopy(item: DockItem): DockCopy {
       }
       break;
     }
-    case 'payment':
-      return {
-        title: `Pay ${rupees(item.amount)} to finish`,
-        detail: `${item.service} is done`,
-        cta: 'Pay',
-        tone: 'attention',
-      };
     case 'rate':
       return {
         title: 'How was your wash?',
@@ -105,22 +85,6 @@ export function dockCopy(item: DockItem): DockCopy {
         cta: 'Rate',
         tone: 'neutral',
         dismissible: true,
-      };
-    case 'upcoming':
-      if (item.today) {
-        return {
-          title: `Today · ${item.time}`,
-          detail: `Expert starts soon · ${item.service}`,
-          cta: 'Track',
-          tone: 'neutral',
-        };
-      }
-      return {
-        title: `${item.day} · ${item.time}`,
-        detail: `${item.service} · ${item.vehicle}`,
-        cta: 'Reschedule',
-        ctaSoft: true,
-        tone: 'neutral',
       };
     case 'cart':
       return {
@@ -136,157 +100,66 @@ export function dockCopy(item: DockItem): DockCopy {
         title: `${item.left} of ${plural(item.total, 'wash', 'washes')} left`,
         detail: `${item.pack} · expires in ${plural(item.expiresInDays, 'day', 'days')}`,
         cta: 'Schedule',
-        tone: item.expiresInDays <= 3 ? 'attention' : 'neutral',
+        tone: 'neutral',
       };
   }
   return { title: '', detail: '', tone: 'neutral' };
 }
 
-const RANK: Record<DockItem['kind'], number> = { live: 0, payment: 1, rate: 2, upcoming: 3, cart: 4, pack: 5 };
-// Today's booking that hasn't started yet sits right after live ones.
-const rank = (i: DockItem) => (i.kind === 'upcoming' && i.today ? 0.5 : RANK[i.kind]);
-const STAGE_RANK: Record<LiveStage, number> = { arrived: 0, in_progress: 1, on_the_way: 2, assigned: 3, finding: 4 };
+const RANK: Record<DockItem['kind'], number> = { live: 0, rate: 1, cart: 2, pack: 3 };
+// The furthest-along service first: the expert at your car beats one still on the way.
+const STAGE_RANK: Record<LiveStage, number> = { in_progress: 0, arrived: 1, on_the_way: 2, scheduled: 3 };
 
-/**
- * Most time-critical first: a live service (expert at the door before anything else), then a
- * booking later today, then money owed, then feedback, upcoming bookings, the cart nudge and finally packs.
- */
+/** Today's service first (furthest along), then the rating, the cart nudge and finally packs. */
 export function sortDock(items: DockItem[]) {
   return [...items].sort(
     (a, b) =>
-      rank(a) - rank(b) || (a.kind === 'live' && b.kind === 'live' ? STAGE_RANK[a.stage] - STAGE_RANK[b.stage] : 0),
+      RANK[a.kind] - RANK[b.kind] ||
+      (a.kind === 'live' && b.kind === 'live' ? STAGE_RANK[a.stage] - STAGE_RANK[b.stage] : 0),
   );
 }
 
-/** A typical day: a wash on its way, one booked for later, a forgotten cart and a pack. */
-export const SAMPLE_DOCK: DockItem[] = sortDock([
-  { kind: 'pack', id: 'b1', pack: 'Starter Pack', left: 2, total: 4, expiresInDays: 10 },
-  { kind: 'cart', id: 'cart', count: 2 },
-  {
-    kind: 'upcoming',
-    id: 'w3',
-    service: 'Interior Deep Cleaning',
-    vehicle: 'Honda Elevate',
-    day: 'Thu, 15 Oct',
-    time: '10:00 AM',
-  },
-  {
-    kind: 'live',
-    id: 'w2',
-    stage: 'on_the_way',
-    service: 'Exterior Foam Wash',
-    vehicle: 'Honda City',
-    expert: 'Sandeep',
-    slot: '2:30 PM',
-    etaMin: 12,
-    progress: 0.45,
-  },
-]);
+const TODAY = {
+  kind: 'live',
+  id: 'w2',
+  service: 'Exterior Foam Wash',
+  vehicle: 'Honda City',
+  expert: 'Sandeep',
+} as const;
 
-/** Every state the dock can show, one card each — for the states preview screen. */
-export const ALL_DOCK_STATES: { label: string; item: DockItem }[] = [
+export type DockEntry = { key: string; label: string; item: DockItem };
+
+/**
+ * Preview build: every state the dock can show, with sample data, in the exact order a day goes —
+ * booked today → expert on the way → arrived → washing → rate, then the cart reminder and packs.
+ * Each one can be switched off in Profile → Edit profile → Configuration.
+ */
+export const DOCK_STATES: DockEntry[] = [
+  { key: 'today', label: 'Today · expert not started yet', item: { ...TODAY, stage: 'scheduled', slot: '2:30 PM' } },
   {
-    label: 'Live · finding an expert',
-    item: {
-      kind: 'live',
-      id: 'w2',
-      stage: 'finding',
-      service: 'Exterior Foam Wash',
-      vehicle: 'Honda City',
-      slot: 'Today, 2:30 PM',
-      progress: 0.08,
-    },
+    key: 'on_the_way',
+    label: 'Expert on the way',
+    item: { ...TODAY, stage: 'on_the_way', slot: '2:30 PM', etaMin: 12, progress: 0.45 },
   },
   {
-    label: 'Live · expert assigned',
-    item: {
-      kind: 'live',
-      id: 'w2',
-      stage: 'assigned',
-      service: 'Exterior Foam Wash',
-      vehicle: 'Honda City',
-      expert: 'Sandeep',
-      slot: '2:30 PM',
-      progress: 0.25,
-    },
+    key: 'arrived',
+    label: 'Expert arrived',
+    item: { ...TODAY, stage: 'arrived', slot: '2:30 PM', endCode: '4821', progress: 0.6 },
   },
   {
-    label: 'Live · on the way',
-    item: {
-      kind: 'live',
-      id: 'w2',
-      stage: 'on_the_way',
-      service: 'Exterior Foam Wash',
-      vehicle: 'Honda City',
-      expert: 'Sandeep',
-      slot: '2:30 PM',
-      etaMin: 12,
-      progress: 0.45,
-    },
+    key: 'in_progress',
+    label: 'Wash in progress',
+    item: { ...TODAY, stage: 'in_progress', slot: '2:30 PM', minutesLeft: 25, progress: 0.75 },
   },
   {
-    label: 'Live · arrived (needs you)',
-    item: {
-      kind: 'live',
-      id: 'w2',
-      stage: 'arrived',
-      service: 'Exterior Foam Wash',
-      vehicle: 'Honda City',
-      expert: 'Sandeep',
-      slot: '2:30 PM',
-      otp: '4821',
-      progress: 0.6,
-    },
-  },
-  {
-    label: 'Live · in progress',
-    item: {
-      kind: 'live',
-      id: 'w1',
-      stage: 'in_progress',
-      service: 'Ceramic Maintenance Wash',
-      vehicle: 'Honda WR-V',
-      expert: 'Sandeep',
-      slot: '11:15 AM',
-      minutesLeft: 25,
-      progress: 0.75,
-    },
-  },
-  {
-    label: 'Today · expert not started yet',
-    item: {
-      kind: 'upcoming',
-      id: 'w3',
-      service: 'Interior Deep Cleaning',
-      vehicle: 'Honda Elevate',
-      day: 'Today',
-      time: '4:00 PM',
-      today: true,
-    },
-  },
-  { label: 'Payment due', item: { kind: 'payment', id: 'w1', service: 'Ceramic Maintenance Wash', amount: 534 } },
-  {
+    key: 'rate',
     label: 'Rate the service',
-    item: { kind: 'rate', id: 'w1', service: 'Ceramic Maintenance Wash', expert: 'Sandeep' },
+    item: { kind: 'rate', id: 'w2', service: 'Exterior Foam Wash', expert: 'Sandeep' },
   },
+  { key: 'cart', label: 'Cart left behind', item: { kind: 'cart', id: 'cart', count: 2 } },
   {
-    label: 'Upcoming booking',
-    item: {
-      kind: 'upcoming',
-      id: 'w3',
-      service: 'Interior Deep Cleaning',
-      vehicle: 'Honda Elevate',
-      day: 'Tomorrow',
-      time: '10:00 AM',
-    },
-  },
-  { label: 'Cart left behind', item: { kind: 'cart', id: 'cart', count: 2 } },
-  {
+    key: 'pack',
     label: 'Pack with washes left',
     item: { kind: 'pack', id: 'b1', pack: 'Starter Pack', left: 2, total: 4, expiresInDays: 10 },
-  },
-  {
-    label: 'Pack expiring soon',
-    item: { kind: 'pack', id: 'b1', pack: 'Monthly Pack', left: 1, total: 4, expiresInDays: 2 },
   },
 ];

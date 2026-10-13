@@ -2,21 +2,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { type ComponentProps, useEffect, useSyncExternalStore } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  Easing,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { Animated, Easing, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
 
-import { type DockItem, type DockTone, dockCopy, SAMPLE_DOCK } from '../data/bookingDock';
+import { DOCK_STATES, type DockEntry, type DockItem, type DockTone, dockCopy } from '../data/bookingDock';
+import { useAppStore } from '../store/AppStore';
 import { ink } from './home/homeTheme';
 import { PressableScale } from './home/motion';
 import { setDockHeight } from './tabBarSpace';
@@ -29,15 +20,14 @@ const CARD_H = 60;
 /** The row's own soft surface inside the white nav panel. */
 const ROW_BG = '#F4F5F7';
 const GREEN = '#0E9F5A';
-const AMBER = '#B54708';
 /** Icon colour and the soft circle behind it, by urgency. */
 const TONE: Record<DockTone, { icon: string; bg: string }> = {
   live: { icon: GREEN, bg: '#E9F7EF' },
-  attention: { icon: ink.gold, bg: ink.yellowSoft },
   neutral: { icon: ink.text, bg: '#FFFFFF' },
 };
 
-// Cards the user closed (cart nudge, rating) stay closed for this session.
+// Cards the user closed (cart nudge, rating) stay closed for this session, until Configuration
+// brings them back.
 const dismissed = new Set<string>();
 const listeners = new Set<() => void>();
 const subscribe = (l: () => void) => {
@@ -48,29 +38,46 @@ const subscribe = (l: () => void) => {
 };
 let version = 0;
 const readVersion = () => version;
-function dismiss(id: string) {
-  dismissed.add(id);
+const notify = () => {
   version += 1;
   listeners.forEach((l) => l());
+};
+function dismiss(key: string) {
+  dismissed.add(key);
+  notify();
 }
 
-/** Dock items still showing (not dismissed this session). */
-export function useVisibleDock(items: DockItem[] = SAMPLE_DOCK) {
+/** How many dock cards were closed with ✕ this session. */
+export function useDismissedCount() {
   useSyncExternalStore(subscribe, readVersion, readVersion);
-  return items.filter((i) => !dismissed.has(i.id));
+  return dismissed.size;
+}
+
+/** Brings back every card closed with ✕ (Configuration). */
+export function restoreDismissed() {
+  dismissed.clear();
+  notify();
+}
+
+/** Dock cards to show: switched on in Configuration and not closed this session, in order. */
+export function useVisibleDock(entries: DockEntry[] = DOCK_STATES) {
+  const { dockPreview } = useAppStore();
+  useSyncExternalStore(subscribe, readVersion, readVersion);
+  if (dockPreview?.off) return [];
+  const hidden = new Set(dockPreview?.hidden ?? []);
+  return entries.filter((e) => !hidden.has(e.key) && !dismissed.has(e.key));
 }
 
 /**
  * Booking dock — a slim row attached to the top of the bottom navigation (one white panel, like
- * iOS 26's tab-bar accessory or a live order on a delivery app). Status first ("Arriving in 12 min"), one supporting line, one action. Several
- * items swipe sideways in priority order: live service, payment, rating, upcoming, cart, packs.
+ * iOS 26's tab-bar accessory or a live order on a delivery app). Status first ("Arriving in 12 min"),
+ * one supporting line, one action. Several cards swipe sideways, in the order given.
  */
-export function BookingDock({ items = SAMPLE_DOCK }: { items?: DockItem[] }) {
+export function BookingDock({ entries }: { entries: DockEntry[] }) {
   const { width } = useWindowDimensions();
   const scrollX = useAnimatedValue(0);
   const enter = useAnimatedValue(0);
-  const visible = useVisibleDock(items);
-  const many = visible.length > 1;
+  const many = entries.length > 1;
 
   useEffect(() => {
     Animated.spring(enter, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 4, delay: 150 }).start();
@@ -78,11 +85,11 @@ export function BookingDock({ items = SAMPLE_DOCK }: { items?: DockItem[] }) {
 
   // Nothing to show: give the space back to the screen.
   useEffect(() => {
-    if (visible.length === 0) setDockHeight(0);
-  }, [visible.length]);
+    if (entries.length === 0) setDockHeight(0);
+  }, [entries.length]);
   useEffect(() => () => setDockHeight(0), []);
 
-  if (visible.length === 0) return null;
+  if (entries.length === 0) return null;
 
   return (
     <Animated.View
@@ -105,17 +112,17 @@ export function BookingDock({ items = SAMPLE_DOCK }: { items?: DockItem[] }) {
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: false })}
       >
-        {visible.map((item, i) => (
-          <View key={item.id} style={{ width, paddingHorizontal: SIDE }}>
+        {entries.map((entry, i) => (
+          <View key={entry.key} style={{ width, paddingHorizontal: SIDE }}>
             <DockCard
-              item={item}
-              position={many ? `${i + 1} of ${visible.length}` : undefined}
-              onDismiss={() => dismiss(item.id)}
+              item={entry.item}
+              position={many ? `${i + 1} of ${entries.length}` : undefined}
+              onDismiss={() => dismiss(entry.key)}
             />
           </View>
         ))}
       </Animated.ScrollView>
-      {many && <Dots count={visible.length} width={width} scrollX={scrollX} />}
+      {many && <Dots count={entries.length} width={width} scrollX={scrollX} />}
     </Animated.View>
   );
 }
@@ -124,7 +131,7 @@ function target(item: DockItem) {
   return item.kind === 'cart' || item.kind === 'pack' ? '/wash' : `/booking/${item.id}`;
 }
 
-/** One dock card. Exported for the states preview screen. */
+/** One dock card. Exported for the Configuration screen's previews. */
 export function DockCard({ item, position, onDismiss }: { item: DockItem; position?: string; onDismiss?: () => void }) {
   const copy = dockCopy(item);
   const leave = useAnimatedValue(1);
@@ -147,14 +154,9 @@ export function DockCard({ item, position, onDismiss }: { item: DockItem; positi
     >
       <Pressable
         onPress={open}
-        onLongPress={__DEV__ ? () => router.push('/dock-states') : undefined}
         accessibilityRole="button"
         accessibilityLabel={label}
-        style={({ pressed }) => [
-          styles.card,
-          copy.tone === 'attention' && styles.cardAttention,
-          pressed && styles.cardPressed,
-        ]}
+        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       >
         <Lead item={item} tone={copy.tone} />
 
@@ -168,16 +170,12 @@ export function DockCard({ item, position, onDismiss }: { item: DockItem; positi
               copy.title
             )}
           </Text>
-          <Detail item={item} text={copy.detail} tone={copy.tone} />
+          <Detail item={item} text={copy.detail} />
         </View>
 
         {copy.cta && (
-          <PressableScale
-            onPress={open}
-            accessibilityLabel={copy.cta}
-            style={[styles.cta, copy.ctaSoft && styles.ctaSoft]}
-          >
-            <Text style={[styles.ctaText, copy.ctaSoft && styles.ctaTextSoft]}>{copy.cta}</Text>
+          <PressableScale onPress={open} accessibilityLabel={copy.cta} style={styles.cta}>
+            <Text style={styles.ctaText}>{copy.cta}</Text>
           </PressableScale>
         )}
         {copy.dismissible && onDismiss && (
@@ -201,21 +199,18 @@ export function DockCard({ item, position, onDismiss }: { item: DockItem; positi
 // ——— Leading icon: one glyph per state, colour = urgency ———
 
 const ICON: Record<string, IconName> = {
-  assigned: 'person',
+  scheduled: 'time',
   on_the_way: 'navigate',
   arrived: 'location',
   in_progress: 'water',
-  payment: 'wallet',
   rate: 'star',
-  upcoming: 'calendar-clear',
-  today: 'time',
   cart: 'cart',
 };
 
 const STARTER_PACK = require('../../assets/bookings/starter-pack.png');
 
 function Lead({ item, tone }: { item: DockItem; tone: DockTone }) {
-  const key = item.kind === 'live' ? item.stage : item.kind === 'upcoming' && item.today ? 'today' : item.kind;
+  const key = item.kind === 'live' ? item.stage : item.kind;
   const { icon: color, bg } = TONE[tone];
 
   // Packs show the Hoora "Starter Pack" tickets from the design file instead of an icon.
@@ -223,20 +218,20 @@ function Lead({ item, tone }: { item: DockItem; tone: DockTone }) {
     return <Image source={STARTER_PACK} style={styles.packArt} resizeMode="contain" accessibilityIgnoresInvertColors />;
   }
 
-  // Expert moving or at the door: solid disc with rings rippling out — the "live" moment.
+  // Expert moving or at the car: green disc with rings rippling out — the "live" moment.
   if (item.kind === 'live' && (item.stage === 'on_the_way' || item.stage === 'arrived')) {
     const arrived = item.stage === 'arrived';
-    const glow = arrived ? ink.yellowDeep : GREEN;
     return (
       <View style={styles.lead}>
-        <Pulse color={glow} />
-        <Pulse color={glow} delay={800} />
-        <View style={[styles.disc, { backgroundColor: arrived ? ink.yellow : GREEN }]}>
-          {arrived ? (
-            <Ionicons name="location" size={17} color={ink.text} />
-          ) : (
-            <Ionicons name="navigate" size={17} color="#FFFFFF" style={styles.arrow} />
-          )}
+        <Pulse color={GREEN} />
+        <Pulse color={GREEN} delay={800} />
+        <View style={[styles.disc, { backgroundColor: GREEN }]}>
+          <Ionicons
+            name={arrived ? 'location' : 'navigate'}
+            size={17}
+            color="#FFFFFF"
+            style={arrived ? undefined : styles.arrow}
+          />
         </View>
       </View>
     );
@@ -245,27 +240,22 @@ function Lead({ item, tone }: { item: DockItem; tone: DockTone }) {
   return (
     <View style={[styles.lead, { backgroundColor: bg }]}>
       {item.kind === 'live' && item.stage === 'in_progress' && <Ring value={item.progress ?? 0} />}
-      {key === 'finding' ? (
-        <ActivityIndicator size="small" color={GREEN} />
-      ) : (
-        <Ionicons name={ICON[key]} size={17} color={color} />
-      )}
+      <Ionicons name={ICON[key]} size={17} color={color} />
     </View>
   );
 }
 
-function Detail({ item, text, tone }: { item: DockItem; text: string; tone: DockTone }) {
-  // The start code is the one thing to read out at the door — make it stand out.
-  if (item.kind === 'live' && item.stage === 'arrived' && item.otp) {
+function Detail({ item, text }: { item: DockItem; text: string }) {
+  // The service end code is what the customer shares to close the service — make it stand out.
+  if (item.kind === 'live' && item.stage === 'arrived' && item.endCode) {
     return (
       <Text style={styles.detail} numberOfLines={1}>
-        Share start code <Text style={styles.code}>{item.otp}</Text>
+        Service end code <Text style={styles.code}>{item.endCode}</Text>
       </Text>
     );
   }
-  const warn = item.kind === 'pack' && tone === 'attention';
   return (
-    <Text style={[styles.detail, warn && { color: AMBER }]} numberOfLines={1}>
+    <Text style={styles.detail} numberOfLines={1}>
       {text}
     </Text>
   );
@@ -427,9 +417,6 @@ const styles = StyleSheet.create({
     backgroundColor: ROW_BG,
     overflow: 'hidden',
   },
-  cardAttention: {
-    backgroundColor: '#FFF8E1',
-  },
   cardPressed: {
     opacity: 0.85,
   },
@@ -504,19 +491,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: ink.text,
   },
-  ctaSoft: {
-    paddingHorizontal: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E4E8',
-  },
   ctaText: {
     fontFamily: fonts.bold,
     fontSize: 13,
     color: '#FFFFFF',
-  },
-  ctaTextSoft: {
-    color: ink.text,
   },
   close: {
     width: 24,

@@ -10,7 +10,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -50,7 +49,7 @@ const isDob = (v: string) => {
 export default function EditProfileScreen() {
   const insets = useSafeAreaInsets();
   const store = useAppStore();
-  const { phone, linked, blackMember, setProfile } = store;
+  const { phone, linked, setProfile } = store;
   const toast = useToast();
 
   const [name, setName] = useState(store.name ?? '');
@@ -279,19 +278,20 @@ export default function EditProfileScreen() {
         />
         {!dobOk && dob.length === 10 && <Text style={styles.error}>Please enter a real date of birth.</Text>}
 
-        {/* Test switch until payments exist */}
-        <View style={styles.test}>
+        {/* Preview-build switches: Hoora Black member, booking dock and its cards */}
+        <Pressable
+          onPress={() => router.push('/configuration')}
+          style={({ pressed }) => [styles.test, pressed && { backgroundColor: '#F2F3F5' }]}
+          accessibilityRole="button"
+          accessibilityHint="Opens preview settings"
+        >
+          <Ionicons name="options-outline" size={20} color={ink.text} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.testTitle}>Hoora Black member</Text>
-            <Text style={styles.testSub}>Testing only — preview the member profile</Text>
+            <Text style={styles.testTitle}>Configuration</Text>
+            <Text style={styles.testSub}>Preview build — Hoora Black, booking dock</Text>
           </View>
-          <Switch
-            value={!!blackMember}
-            onValueChange={(v) => setProfile({ blackMember: v })}
-            trackColor={{ false: '#D9DBE1', true: ink.yellowDeep }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
+          <Ionicons name="chevron-forward" size={18} color={ink.faint} />
+        </Pressable>
       </ScrollView>
 
       <ActionFooter bottomInset={insets.bottom}>

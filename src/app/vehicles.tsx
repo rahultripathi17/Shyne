@@ -57,26 +57,35 @@ function lookup(plate: string, owner: string) {
         : { value: 'Clear', sub: 'No pending challans', tone: 'good' as Tone },
       puc: { value: 'Valid', sub: `till ${(h % 24) + 3} ${MONTHS[(h + 8) % 12]} 2027`, tone: 'good' as Tone },
       insurance: { value: 'Active', sub: `till ${(h % 26) + 1} ${MONTHS[(h + 4) % 12]} 2027`, tone: 'good' as Tone },
-      fastag: { value: 'Active', sub: 'Linked to this car', tone: 'good' as Tone },
     },
   };
 }
 
+/** FASTag isn't live yet: same card, "Coming soon" with or without a number. */
+const SOON = { value: 'Coming soon', sub: 'Recharge & track balance', tone: 'none' as Tone };
+
 const STATUS: {
-  key: 'challan' | 'puc' | 'insurance' | 'fastag';
+  key: 'challan' | 'insurance' | 'puc' | 'fastag';
   label: string;
   icon: IconName;
   tint: string;
   bg: string;
 }[] = [
   { key: 'challan', label: 'Challans', icon: 'receipt-outline', tint: '#C2410C', bg: '#FFF3EC' },
-  { key: 'puc', label: 'Pollution', icon: 'leaf-outline', tint: '#15803D', bg: '#ECF8F0' },
   { key: 'insurance', label: 'Insurance', icon: 'shield-checkmark-outline', tint: '#1D4ED8', bg: '#EEF3FF' },
+  { key: 'puc', label: 'Pollution', icon: 'leaf-outline', tint: '#15803D', bg: '#ECF8F0' },
   { key: 'fastag', label: 'FASTag', icon: 'pricetag-outline', tint: '#7C3AED', bg: '#F4EFFF' },
 ];
 
 const SEATS_BY_BODY: Record<string, number> = { MUV: 7 };
 const modelName = (v: SavedCar) => (v.type === 'bike' ? v.model || 'My Bike' : v.model);
+
+const chipStyle = (tone: Tone) =>
+  tone === 'warn'
+    ? ([styles.chipWarn, styles.chipTextWarn] as const)
+    : tone === 'none'
+      ? ([styles.chipSoon, styles.chipTextSoon] as const)
+      : ([styles.chipGood, styles.chipTextGood] as const);
 
 /** A plain bottom sheet: handle, title row with close, then its content. */
 function Sheet({
@@ -304,11 +313,12 @@ export default function VehiclesScreen() {
             <Text style={styles.section}>Status</Text>
             <View style={styles.statusGrid}>
               {STATUS.map((s) => {
-                const st = rc?.status[s.key];
+                const soon = s.key === 'fastag';
+                const st = s.key === 'fastag' ? SOON : rc?.status[s.key];
                 return (
                   <Pressable
                     key={s.key}
-                    onPress={() => (rc ? toast.show(`${s.label} — coming soon`) : openNumber())}
+                    onPress={() => (rc || soon ? toast.show(`${s.label} — coming soon`) : openNumber())}
                     style={({ pressed }) => [styles.statusCard, pressed && styles.pressed]}
                     accessibilityRole="button"
                     accessibilityLabel={s.label}
@@ -318,12 +328,8 @@ export default function VehiclesScreen() {
                         <Ionicons name={s.icon} size={18} color={s.tint} />
                       </View>
                       {st && (
-                        <View style={[styles.chip, st.tone === 'warn' ? styles.chipWarn : styles.chipGood]}>
-                          <Text
-                            style={[styles.chipText, st.tone === 'warn' ? styles.chipTextWarn : styles.chipTextGood]}
-                          >
-                            {st.value}
-                          </Text>
+                        <View style={[styles.chip, chipStyle(st.tone)[0]]}>
+                          <Text style={[styles.chipText, chipStyle(st.tone)[1]]}>{st.value}</Text>
                         </View>
                       )}
                     </View>
@@ -521,6 +527,8 @@ const styles = StyleSheet.create({
   chipText: { fontFamily: fonts.bold, fontSize: 11.5 },
   chipTextGood: { color: '#0E7A47' },
   chipTextWarn: { color: '#B45309' },
+  chipSoon: { backgroundColor: '#F2F3F5' },
+  chipTextSoon: { color: ink.muted },
   sheetWrap: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(11,11,15,0.55)' },
   sheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20 },
