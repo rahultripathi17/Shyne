@@ -3,7 +3,6 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { type ComponentProps, useEffect, useSyncExternalStore } from 'react';
 import { Animated, Easing, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
 
 import { DOCK_STATES, type DockEntry, type DockItem, type DockTone, dockCopy } from '../data/bookingDock';
@@ -142,7 +141,6 @@ export function DockCard({ item, position, onDismiss }: { item: DockItem; positi
       () => onDismiss?.(),
     );
   };
-  const progress = item.kind === 'live' && item.stage !== 'in_progress' ? item.progress : undefined;
   const label = `${copy.title}. ${copy.detail}.${position ? ` Card ${position}.` : ''}`;
 
   return (
@@ -189,8 +187,6 @@ export function DockCard({ item, position, onDismiss }: { item: DockItem; positi
             <Ionicons name="close" size={18} color={ink.faint} />
           </Pressable>
         )}
-
-        {progress !== undefined && <ProgressLine value={progress} />}
       </Pressable>
     </Animated.View>
   );
@@ -218,29 +214,37 @@ function Lead({ item, tone }: { item: DockItem; tone: DockTone }) {
     return <Image source={STARTER_PACK} style={styles.packArt} resizeMode="contain" accessibilityIgnoresInvertColors />;
   }
 
-  // Expert moving or at the car: green disc with rings rippling out — the "live" moment.
-  if (item.kind === 'live' && (item.stage === 'on_the_way' || item.stage === 'arrived')) {
-    const arrived = item.stage === 'arrived';
+  // Rate the wash: a solid black star on white, matching the black "Rate" button beside it.
+  if (item.kind === 'rate') {
     return (
-      <View style={styles.lead}>
-        <Pulse color={GREEN} />
-        <Pulse color={GREEN} delay={800} />
-        <View style={[styles.disc, { backgroundColor: GREEN }]}>
-          <Ionicons
-            name={arrived ? 'location' : 'navigate'}
-            size={17}
-            color="#FFFFFF"
-            style={arrived ? undefined : styles.arrow}
-          />
-        </View>
+      <View style={[styles.lead, styles.leadWhite]}>
+        <Ionicons name="star" size={18} color={ink.text} />
       </View>
     );
   }
 
+  // Booked for today, not started: a green clock on white, inside the empty track of the same
+  // progress ring the next stages fill in. No motion.
+  if (item.kind === 'live' && item.stage === 'scheduled') {
+    return (
+      <View style={[styles.lead, styles.leadWhite]}>
+        <Ring value={0} />
+        <Ionicons name="time" size={19} color={GREEN} />
+      </View>
+    );
+  }
+
+  // On the way, arrived and washing all share one look: the green progress ring round the icon.
+  const ring = item.kind === 'live' && item.stage !== 'scheduled';
   return (
     <View style={[styles.lead, { backgroundColor: bg }]}>
-      {item.kind === 'live' && item.stage === 'in_progress' && <Ring value={item.progress ?? 0} />}
-      <Ionicons name={ICON[key]} size={17} color={color} />
+      {ring && <Ring value={item.progress ?? 0} />}
+      <Ionicons
+        name={ICON[key]}
+        size={17}
+        color={color}
+        style={item.kind === 'live' && item.stage === 'on_the_way' ? styles.arrow : undefined}
+      />
     </View>
   );
 }
@@ -263,39 +267,9 @@ function Detail({ item, text }: { item: DockItem; text: string }) {
 
 // ——— Motion ———
 
-/** A ring rippling out of the icon — "happening right now". Two, staggered, read as a live signal. */
-function Pulse({ color, delay = 0 }: { color: string; delay?: number }) {
-  const t = useAnimatedValue(0);
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.timing(t, { toValue: 1, duration: 1600, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.delay(Math.max(0, 800 - delay)),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [t, delay]);
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        styles.pulse,
-        {
-          borderColor: color,
-          opacity: t.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.9, 0] }),
-          transform: [{ scale: t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }],
-        },
-      ]}
-    />
-  );
-}
-
 const RING = 38;
 const RING_R = 17.5;
 const RING_C = 2 * Math.PI * RING_R;
-
 /** Progress ring round the icon while the wash is under way. */
 function Ring({ value }: { value: number }) {
   return (
@@ -314,59 +288,6 @@ function Ring({ value }: { value: number }) {
         transform={`rotate(-90 ${RING / 2} ${RING / 2})`}
       />
     </Svg>
-  );
-}
-
-/** Journey progress along the card's bottom edge; fills in when the card appears. */
-function ProgressLine({ value }: { value: number }) {
-  const t = useAnimatedValue(0);
-  useEffect(() => {
-    Animated.timing(t, {
-      toValue: value,
-      duration: 900,
-      delay: 250,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [t, value]);
-  return (
-    <View style={styles.track} pointerEvents="none">
-      <Animated.View
-        style={[styles.fill, { width: t.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]}
-      >
-        <Sweep />
-      </Animated.View>
-    </View>
-  );
-}
-
-/** A soft highlight that keeps running along the progress line — the journey is moving. */
-function Sweep() {
-  const t = useAnimatedValue(0);
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(t, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.delay(500),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [t]);
-  return (
-    <Animated.View
-      style={[
-        styles.sweep,
-        { transform: [{ translateX: t.interpolate({ inputRange: [0, 1], outputRange: [-60, 320] }) }] },
-      ]}
-    >
-      <LinearGradient
-        colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.85)', 'rgba(255,255,255,0)']}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 1, y: 0.5 }}
-        style={StyleSheet.absoluteFill}
-      />
-    </Animated.View>
   );
 }
 
@@ -427,6 +348,14 @@ const styles = StyleSheet.create({
     marginLeft: -2,
     marginRight: -3,
   },
+  overlay: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+  },
+  leadWhite: {
+    backgroundColor: '#FFFFFF',
+  },
   lead: {
     width: RING,
     height: RING,
@@ -434,12 +363,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pulse: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: RING / 2,
-    borderWidth: 2,
-  },
-  // The arrow's weight sits ~1pt up-right of its box; nudge it back so it looks centred in the disc.
+  // The arrow's weight sits ~1pt up-right of its box; nudge it back so it looks centred in the ring.
   arrow: {
     marginLeft: -1,
     marginTop: 1,
@@ -449,21 +373,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 1,
   },
-  disc: {
-    width: RING,
-    height: RING,
-    borderRadius: RING / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   eta: {
     color: GREEN,
-  },
-  sweep: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: 60,
   },
   title: {
     fontFamily: fonts.bold,
@@ -502,21 +413,6 @@ const styles = StyleSheet.create({
     marginLeft: -4,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  track: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 3,
-    backgroundColor: '#E3E6EA',
-  },
-  fill: {
-    height: 3,
-    borderTopRightRadius: 2,
-    borderBottomRightRadius: 2,
-    backgroundColor: GREEN,
-    overflow: 'hidden',
   },
   dots: {
     alignSelf: 'center',
