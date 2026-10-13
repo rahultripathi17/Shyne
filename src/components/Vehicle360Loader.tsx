@@ -1,36 +1,40 @@
-import { useEffect, useState } from 'react';
-import { Animated, Easing, StyleSheet, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { type ComponentProps, useEffect, useState } from 'react';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
 import { ink } from './home/homeTheme';
 import { fonts, useAnimatedValue } from './theme';
+
+type IconName = ComponentProps<typeof Ionicons>['name'];
 
 const WORD = 'Vehicle 360';
 const CHARS = [...WORD];
 // Where each letter sits along the sweep (0 → 1), so the light passes through them in order.
 const AT = CHARS.map((_, i) => 0.12 + (0.76 * i) / (CHARS.length - 1));
 const SWEEP_MS = 1500;
+const TRACK_W = 44;
 
 // One line per Hoora vertical, said the Gen Z way. Not tied to any screen, so they read right
 // on any delay, and they loop for as long as the wait lasts.
-const LINES = [
-  'Foam on, dirt gone', // car wash
-  'Your bike’s glow-up is loading', // bike wash
-  'Polishing till it’s main-character shiny', // detailing
-  'Booking your society’s wash day', // society wash
-  'Spanners out, mechanics locked in', // garage service
-  'Erasing dents like they never happened', // denting & painting
-  'Chilling the AC. Literally.', // AC service
-  'No flat era. Checking your tyres', // tyres & wheels
-  'Zero dead-battery drama', // batteries
-  'Hunting down pending challans', // challan
-  'Making sure your ride’s covered', // insurance
-  'Keeping your PUC green, no cap', // pollution
-  'FASTag topped up, tolls on easy mode', // FASTag
-  'Restocking the drip for your car', // products & accessories
-  'Roadside help, on speed dial', // roadside assistance
-  'Finding chargers near you', // EV charging
-  'Scouting cars worth the hype', // used cars & dealers
-  'Stacking your Hoora Points', // rewards
+const LINES: { text: string; icon: IconName }[] = [
+  { text: 'Foam on, dirt gone', icon: 'water-outline' }, // car wash
+  { text: 'Your bike’s glow-up is loading', icon: 'bicycle-outline' }, // bike wash
+  { text: 'Polishing till it’s main-character shiny', icon: 'sparkles-outline' }, // detailing
+  { text: 'Booking your society’s wash day', icon: 'business-outline' }, // society wash
+  { text: 'Spanners out, mechanics locked in', icon: 'construct-outline' }, // garage service
+  { text: 'Erasing dents like they never happened', icon: 'color-palette-outline' }, // denting & painting
+  { text: 'Chilling the AC. Literally.', icon: 'snow-outline' }, // AC service
+  { text: 'No flat era. Checking your tyres', icon: 'disc-outline' }, // tyres & wheels
+  { text: 'Zero dead-battery drama', icon: 'battery-charging-outline' }, // batteries
+  { text: 'Hunting down pending challans', icon: 'receipt-outline' }, // challan
+  { text: 'Making sure your ride’s covered', icon: 'shield-checkmark-outline' }, // insurance
+  { text: 'Keeping your PUC green, no cap', icon: 'leaf-outline' }, // pollution
+  { text: 'FASTag topped up, tolls on easy mode', icon: 'pricetag-outline' }, // FASTag
+  { text: 'Restocking the drip for your car', icon: 'bag-handle-outline' }, // products & accessories
+  { text: 'Roadside help, on speed dial', icon: 'navigate-outline' }, // roadside assistance
+  { text: 'Finding chargers near you', icon: 'flash-outline' }, // EV charging
+  { text: 'Scouting cars worth the hype', icon: 'car-sport-outline' }, // used cars & dealers
+  { text: 'Stacking your Hoora Points', icon: 'gift-outline' }, // rewards
 ];
 const LINE_MS = 1800;
 
@@ -118,7 +122,7 @@ export function Vehicle360Loader({ visible }: { visible: boolean; duration?: num
     <Animated.View
       pointerEvents="none"
       accessibilityRole="progressbar"
-      accessibilityLabel={`Vehicle 360. ${LINES[order[step]]}`}
+      accessibilityLabel={`Vehicle 360. ${LINES[order[step]].text}`}
       accessibilityLiveRegion="polite"
       style={[styles.screen, { opacity: show }]}
     >
@@ -149,15 +153,28 @@ export function Vehicle360Loader({ visible }: { visible: boolean; duration?: num
           );
         })}
       </View>
-      <Animated.Text
-        numberOfLines={1}
+      {/* A short track with the same light running through it, in Hoora yellow */}
+      <View style={styles.track}>
+        <Animated.View
+          style={[
+            styles.trackLight,
+            { transform: [{ translateX: sweep.interpolate({ inputRange: [0, 1], outputRange: [-16, TRACK_W] }) }] },
+          ]}
+        />
+      </View>
+      <Animated.View
         style={[
-          styles.status,
+          styles.statusRow,
           { opacity: line, transform: [{ translateY: line.interpolate({ inputRange: [0, 1], outputRange: [3, 0] }) }] },
         ]}
       >
-        {LINES[order[step]]}
-      </Animated.Text>
+        <View style={styles.statusIcon}>
+          <Ionicons name={LINES[order[step]].icon} size={13} color={ink.text} />
+        </View>
+        <Text numberOfLines={1} style={styles.status}>
+          {LINES[order[step]].text}
+        </Text>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -188,10 +205,39 @@ const styles = StyleSheet.create({
   space: {
     width: 7,
   },
+  track: {
+    width: TRACK_W,
+    height: 2,
+    marginTop: 18,
+    borderRadius: 1,
+    overflow: 'hidden',
+    backgroundColor: '#EEEFF2',
+  },
+  trackLight: {
+    width: 16,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: ink.yellowDeep,
+  },
+  statusRow: {
+    marginTop: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    maxWidth: 320,
+  },
+  statusIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F4F5F7',
+  },
   status: {
-    marginTop: 8,
+    flexShrink: 1,
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: 13.5,
     color: ink.muted,
   },
 });
