@@ -24,7 +24,16 @@ export type DockItem =
     }
   | { kind: 'payment'; id: string; service: string; amount: number }
   | { kind: 'rate'; id: string; service: string; expert: string }
-  | { kind: 'upcoming'; id: string; service: string; vehicle: string; day: string; time: string }
+  | {
+      kind: 'upcoming';
+      id: string;
+      service: string;
+      vehicle: string;
+      day: string;
+      time: string;
+      /** Booked for today but the expert hasn't set out yet — track it, don't reschedule it. */
+      today?: boolean;
+    }
   | { kind: 'cart'; id: string; count: number }
   | { kind: 'pack'; id: string; pack: string; left: number; total: number; expiresInDays: number };
 
@@ -98,6 +107,14 @@ export function dockCopy(item: DockItem): DockCopy {
         dismissible: true,
       };
     case 'upcoming':
+      if (item.today) {
+        return {
+          title: `Today · ${item.time}`,
+          detail: `Expert starts soon · ${item.service}`,
+          cta: 'Track',
+          tone: 'neutral',
+        };
+      }
       return {
         title: `${item.day} · ${item.time}`,
         detail: `${item.service} · ${item.vehicle}`,
@@ -126,17 +143,18 @@ export function dockCopy(item: DockItem): DockCopy {
 }
 
 const RANK: Record<DockItem['kind'], number> = { live: 0, payment: 1, rate: 2, upcoming: 3, cart: 4, pack: 5 };
+// Today's booking that hasn't started yet sits right after live ones.
+const rank = (i: DockItem) => (i.kind === 'upcoming' && i.today ? 0.5 : RANK[i.kind]);
 const STAGE_RANK: Record<LiveStage, number> = { arrived: 0, in_progress: 1, on_the_way: 2, assigned: 3, finding: 4 };
 
 /**
- * Most time-critical first: a live service (expert at the door before anything else), then money
- * owed, then feedback, upcoming bookings, the cart nudge and finally packs.
+ * Most time-critical first: a live service (expert at the door before anything else), then a
+ * booking later today, then money owed, then feedback, upcoming bookings, the cart nudge and finally packs.
  */
 export function sortDock(items: DockItem[]) {
   return [...items].sort(
     (a, b) =>
-      RANK[a.kind] - RANK[b.kind] ||
-      (a.kind === 'live' && b.kind === 'live' ? STAGE_RANK[a.stage] - STAGE_RANK[b.stage] : 0),
+      rank(a) - rank(b) || (a.kind === 'live' && b.kind === 'live' ? STAGE_RANK[a.stage] - STAGE_RANK[b.stage] : 0),
   );
 }
 
@@ -232,6 +250,18 @@ export const ALL_DOCK_STATES: { label: string; item: DockItem }[] = [
       slot: '11:15 AM',
       minutesLeft: 25,
       progress: 0.75,
+    },
+  },
+  {
+    label: 'Today · expert not started yet',
+    item: {
+      kind: 'upcoming',
+      id: 'w3',
+      service: 'Interior Deep Cleaning',
+      vehicle: 'Honda Elevate',
+      day: 'Today',
+      time: '4:00 PM',
+      today: true,
     },
   },
   { label: 'Payment due', item: { kind: 'payment', id: 'w1', service: 'Ceramic Maintenance Wash', amount: 534 } },

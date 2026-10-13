@@ -6,12 +6,14 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Image,
   Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
 
 import { type DockItem, type DockTone, dockCopy, SAMPLE_DOCK } from '../data/bookingDock';
@@ -158,7 +160,13 @@ export function DockCard({ item, position, onDismiss }: { item: DockItem; positi
 
         <View style={styles.copy}>
           <Text style={styles.title} numberOfLines={1}>
-            {copy.title}
+            {item.kind === 'live' && item.stage === 'on_the_way' ? (
+              <>
+                Arriving in <Text style={styles.eta}>{item.etaMin ?? 0} min</Text>
+              </>
+            ) : (
+              copy.title
+            )}
           </Text>
           <Detail item={item} text={copy.detail} tone={copy.tone} />
         </View>
@@ -200,18 +208,38 @@ const ICON: Record<string, IconName> = {
   payment: 'wallet',
   rate: 'star',
   upcoming: 'calendar-clear',
+  today: 'time',
   cart: 'cart',
-  pack: 'ticket',
 };
 
+const STARTER_PACK = require('../../assets/bookings/starter-pack.png');
+
 function Lead({ item, tone }: { item: DockItem; tone: DockTone }) {
-  const key = item.kind === 'live' ? item.stage : item.kind;
+  const key = item.kind === 'live' ? item.stage : item.kind === 'upcoming' && item.today ? 'today' : item.kind;
   const { icon: color, bg } = TONE[tone];
-  const pulse = item.kind === 'live' && (item.stage === 'on_the_way' || item.stage === 'arrived');
+
+  // Packs show the Hoora "Starter Pack" tickets from the design file instead of an icon.
+  if (item.kind === 'pack') {
+    return <Image source={STARTER_PACK} style={styles.packArt} resizeMode="contain" accessibilityIgnoresInvertColors />;
+  }
+
+  // Expert moving or at the door: solid disc glowing out in waves — the "live" moment.
+  if (item.kind === 'live' && (item.stage === 'on_the_way' || item.stage === 'arrived')) {
+    const arrived = item.stage === 'arrived';
+    const glow = arrived ? ink.yellowDeep : GREEN;
+    return (
+      <View style={styles.lead}>
+        <Pulse color={glow} />
+        <Pulse color={glow} delay={800} />
+        <View style={[styles.disc, { backgroundColor: arrived ? ink.yellow : GREEN }]}>
+          {arrived ? <Ionicons name="location" size={17} color={ink.text} /> : <MovingArrow />}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.lead, { backgroundColor: bg }]}>
-      {pulse && <Pulse color={color} />}
       {item.kind === 'live' && item.stage === 'in_progress' && <Ring value={item.progress ?? 0} />}
       {key === 'finding' ? (
         <ActivityIndicator size="small" color={GREEN} />
@@ -241,24 +269,63 @@ function Detail({ item, text, tone }: { item: DockItem; text: string; tone: Dock
 
 // ——— Motion ———
 
-/** Soft ring breathing out of the icon — "happening right now". */
-function Pulse({ color }: { color: string }) {
+/** A ring rippling out of the icon — "happening right now". Two, staggered, read as a live signal. */
+/** The navigation arrow keeps edging forward (up-right) and settling back, with a soft blink. */
+function MovingArrow() {
   const t = useAnimatedValue(0);
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.timing(t, { toValue: 1, duration: 1600, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.sequence([
+        Animated.timing(t, { toValue: 1, duration: 700, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(t, { toValue: 0, duration: 700, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        Animated.delay(200),
+      ]),
     );
     loop.start();
     return () => loop.stop();
   }, [t]);
+  const shift = t.interpolate({ inputRange: [0, 1], outputRange: [0, 1.6] });
   return (
     <Animated.View
+      style={[
+        styles.arrow,
+        {
+          opacity: t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.72] }),
+          transform: [
+            { translateX: shift },
+            { translateY: Animated.multiply(shift, -1) },
+            { scale: t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
+          ],
+        },
+      ]}
+    >
+      <Ionicons name="navigate" size={17} color="#FFFFFF" />
+    </Animated.View>
+  );
+}
+
+function Pulse({ color, delay = 0 }: { color: string; delay?: number }) {
+  const t = useAnimatedValue(0);
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(t, { toValue: 1, duration: 1600, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.delay(Math.max(0, 800 - delay)),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [t, delay]);
+  return (
+    <Animated.View
+      pointerEvents="none"
       style={[
         styles.pulse,
         {
           backgroundColor: color,
-          opacity: t.interpolate({ inputRange: [0, 1], outputRange: [0.28, 0] }),
-          transform: [{ scale: t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.55] }) }],
+          opacity: t.interpolate({ inputRange: [0, 0.1, 1], outputRange: [0, 0.45, 0] }),
+          transform: [{ scale: t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] }) }],
         },
       ]}
     />
@@ -306,8 +373,40 @@ function ProgressLine({ value }: { value: number }) {
     <View style={styles.track} pointerEvents="none">
       <Animated.View
         style={[styles.fill, { width: t.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]}
-      />
+      >
+        <Sweep />
+      </Animated.View>
     </View>
+  );
+}
+
+/** A soft highlight that keeps running along the progress line — the journey is moving. */
+function Sweep() {
+  const t = useAnimatedValue(0);
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(t, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.delay(500),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [t]);
+  return (
+    <Animated.View
+      style={[
+        styles.sweep,
+        { transform: [{ translateX: t.interpolate({ inputRange: [0, 1], outputRange: [-60, 320] }) }] },
+      ]}
+    >
+      <LinearGradient
+        colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.85)', 'rgba(255,255,255,0)']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={StyleSheet.absoluteFill}
+      />
+    </Animated.View>
   );
 }
 
@@ -364,6 +463,13 @@ const styles = StyleSheet.create({
   cardPressed: {
     opacity: 0.85,
   },
+  // 240 × 163 artwork (stacked tickets), a little wider than the icon circles.
+  packArt: {
+    width: 50,
+    height: 34,
+    marginLeft: -2,
+    marginRight: -3,
+  },
   lead: {
     width: RING,
     height: RING,
@@ -375,10 +481,31 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     borderRadius: RING / 2,
   },
+  // The arrow's weight sits ~1pt up-right of its box; nudge it back so it looks centred in the disc.
+  arrow: {
+    marginLeft: -1,
+    marginTop: 1,
+  },
   copy: {
     flex: 1,
     minWidth: 0,
     gap: 1,
+  },
+  disc: {
+    width: RING,
+    height: RING,
+    borderRadius: RING / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eta: {
+    color: GREEN,
+  },
+  sweep: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 60,
   },
   title: {
     fontFamily: fonts.bold,
@@ -432,12 +559,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 2,
-    backgroundColor: '#E6E8EC',
+    height: 3,
+    backgroundColor: '#E3E6EA',
   },
   fill: {
-    height: 2,
+    height: 3,
+    borderTopRightRadius: 2,
+    borderBottomRightRadius: 2,
     backgroundColor: GREEN,
+    overflow: 'hidden',
   },
   dots: {
     alignSelf: 'center',
