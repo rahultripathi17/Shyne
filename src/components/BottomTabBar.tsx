@@ -1,5 +1,4 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as Haptics from 'expo-haptics';
 import type { Tabs } from 'expo-router';
 import type { ComponentProps } from 'react';
@@ -15,22 +14,15 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 // Outline when idle, filled when selected — always the same shape.
 export const TAB_ICONS: Record<string, [IconName, IconName]> = {
   index: ['home-outline', 'home'],
+  bookings: ['calendar-outline', 'calendar'],
   rewards: ['gift-outline', 'gift'],
   profile: ['person-circle-outline', 'person-circle'],
 };
 
-// Bookings: a service job card (clipboard with a checklist), outline when idle and filled when
-// selected — matches the iOS tab (SF Symbol list.clipboard).
-const BOOKINGS_ICON = ['clipboard-list-outline', 'clipboard-list'] as const;
-
 /** Height of the docked bar above the system navigation area. */
 export const BOTTOM_BAR_HEIGHT = 62;
 
-/**
- * Android (and web) tab bar: a solid white bar docked to the bottom, like Urban Company and
- * Swiggy — no floating glass. The selected tab gets a dark marker, a filled icon and a
- * bold label.
- */
+/** The same docked bar and icon states on iOS, Android, and web. */
 export function BottomTabBar({ state, descriptors, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
 
@@ -38,7 +30,8 @@ export function BottomTabBar({ state, descriptors, navigation }: TabBarProps) {
     <View style={[styles.bar, { paddingBottom: insets.bottom, height: BOTTOM_BAR_HEIGHT + insets.bottom }]}>
       {state.routes.map((route, index) => {
         const focused = state.index === index;
-        const label = descriptors[route.key].options.title ?? route.name;
+        const options = descriptors[route.key].options;
+        const label = options.title ?? route.name;
         const [outline, filled] = TAB_ICONS[route.name] ?? ['ellipse-outline', 'ellipse'];
 
         const onPress = () => {
@@ -49,26 +42,22 @@ export function BottomTabBar({ state, descriptors, navigation }: TabBarProps) {
           }
         };
 
+        const onLongPress = () => navigation.emit({ type: 'tabLongPress', target: route.key });
+
         return (
           <Pressable
             key={route.key}
             onPress={onPress}
-            android_ripple={{ color: 'rgba(0,0,0,0.06)', borderless: true, radius: 40 }}
+            onLongPress={onLongPress}
+            android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
             accessibilityRole="tab"
             accessibilityState={{ selected: focused }}
-            accessibilityLabel={label}
-            style={styles.item}
+            aria-selected={focused}
+            accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
+            style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
           >
             <View style={[styles.marker, focused && styles.markerOn]} />
-            {route.name === 'bookings' ? (
-              <MaterialCommunityIcons
-                name={BOOKINGS_ICON[focused ? 1 : 0]}
-                size={24}
-                color={focused ? ink.text : '#8A8D95'}
-              />
-            ) : (
-              <Ionicons name={focused ? filled : outline} size={23} color={focused ? ink.text : '#8A8D95'} />
-            )}
+            <Ionicons name={focused ? filled : outline} size={24} color={focused ? ink.text : '#62656B'} />
             <Text style={[styles.label, focused && styles.labelOn]} numberOfLines={1}>
               {label}
             </Text>
@@ -101,7 +90,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 3,
   },
-  // Short dark bar on the top edge above the selected tab.
+  itemPressed: {
+    opacity: 0.68,
+  },
+  // A short yellow line marks the selected tab without adding a colored background.
   marker: {
     position: 'absolute',
     top: 0,
@@ -112,15 +104,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   markerOn: {
-    backgroundColor: ink.text,
+    backgroundColor: ink.yellow,
   },
   label: {
-    fontFamily: fonts.semiBold,
-    fontSize: 11,
-    color: '#8A8D95',
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    lineHeight: 16,
+    includeFontPadding: false,
+    textAlign: 'center',
+    color: '#62656B',
   },
   labelOn: {
-    fontFamily: fonts.extraBold,
+    fontFamily: fonts.bold,
     color: ink.text,
   },
 });
