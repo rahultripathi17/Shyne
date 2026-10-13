@@ -16,7 +16,7 @@ import { useTabBarSpace } from '../../components/tabBarSpace';
 import { PullSpinner } from '../../components/home/PullSpinner';
 import { fonts, useAnimatedValue } from '../../components/theme';
 import { Toast, useToast } from '../../components/Toast';
-import { Vehicle360Loader } from '../../components/Vehicle360Loader';
+import { VEHICLE_360_PREVIEW_MS, Vehicle360Loader } from '../../components/Vehicle360Loader';
 import { useAppStore } from '../../store/AppStore';
 
 // Profile header, compact membership status, quick links, and account menu.
@@ -42,8 +42,11 @@ const PROFILE_AVATAR = require('../../../assets/profile/rahul-demo.jpg');
 const BLACK_PRICE = 499;
 /** Pull this far (and let go) to refresh. */
 const PULL_THRESHOLD = 90;
-/** Demo length of the long-wait screen. */
-const WAIT_MS = 3000;
+/**
+ * Preview build: the loading screen stays until every line has shown once (tap to close early).
+ * In production it should stay only until the profile's data has actually loaded.
+ */
+const WAIT_MS = VEHICLE_360_PREVIEW_MS;
 
 // The Hoora "H" logo drawn as a faint watermark in the member header.
 const markXml = (color: string) => HOORA_LOGO_XML.replace(/#FFE300/g, color);
@@ -136,11 +139,20 @@ export default function ProfileScreen() {
   // Pull to refresh like Home; on release the Vehicle 360 loading mark appears.
   const [waiting, setWaiting] = useState(false);
   const waitTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // Set at once (not on the next render), so the refresh control and the pull check below can
+  // never start it twice.
+  const busy = useRef(false);
+  const stopWait = () => {
+    clearTimeout(waitTimer.current);
+    busy.current = false;
+    setWaiting(false);
+  };
   const startWait = () => {
-    if (waiting) return;
+    if (busy.current) return;
+    busy.current = true;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setWaiting(true);
-    waitTimer.current = setTimeout(() => setWaiting(false), WAIT_MS);
+    waitTimer.current = setTimeout(stopWait, WAIT_MS);
   };
   useEffect(() => () => clearTimeout(waitTimer.current), []);
   // Dark status bar icons on the white loading screen; back to the header's style afterwards.
@@ -184,20 +196,20 @@ export default function ProfileScreen() {
         bounces={Platform.OS === 'ios'}
         alwaysBounceVertical={Platform.OS === 'ios'}
         overScrollMode="never"
-        // iOS: starts when the finger lets go past the threshold, not mid-pull.
+        // iOS backup: also starts when the finger lets go past the threshold.
         onScrollEndDrag={(e) => {
           if (Platform.OS === 'ios' && e.nativeEvent.contentOffset.y <= -PULL_THRESHOLD) startWait();
         }}
+        // The system pull-to-refresh starts the loader on both platforms (reliable on every full
+        // pull); its own spinner is invisible so the Vehicle 360 screen is the only indicator.
         refreshControl={
-          Platform.OS === 'android' ? (
-            // Android's own spinner is hidden: the car loader is the only indicator.
-            <RefreshControl
-              refreshing={false}
-              onRefresh={startWait}
-              colors={['transparent']}
-              progressBackgroundColor="transparent"
-            />
-          ) : undefined
+          <RefreshControl
+            refreshing={false}
+            onRefresh={startWait}
+            tintColor="transparent"
+            colors={['transparent']}
+            progressBackgroundColor="transparent"
+          />
         }
         contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
@@ -397,7 +409,7 @@ export default function ProfileScreen() {
       {Platform.OS === 'ios' && (
         <PullSpinner scrollY={scrollY} refreshing={false} top={insets.top + 10} threshold={PULL_THRESHOLD} />
       )}
-      <Vehicle360Loader visible={waiting} duration={WAIT_MS} />
+      <Vehicle360Loader visible={waiting} preview onClose={stopWait} />
     </View>
   );
 }

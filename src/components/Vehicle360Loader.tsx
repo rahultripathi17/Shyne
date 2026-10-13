@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { type ComponentProps, useEffect, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ink } from './home/homeTheme';
 import { fonts, useAnimatedValue } from './theme';
@@ -38,6 +38,12 @@ const LINES: { text: string; icon: IconName }[] = [
 ];
 const LINE_MS = 1800;
 
+/**
+ * Long enough for the preview to show every line once, in order. Each line lasts LINE_MS plus the
+ * 160 ms fade-out before the next one starts.
+ */
+export const VEHICLE_360_PREVIEW_MS = LINES.length * (LINE_MS + 160) + 400;
+
 /** The lines in a fresh random order, so each wait starts somewhere new. */
 const shuffled = () => {
   const order = LINES.map((_, i) => i);
@@ -47,26 +53,35 @@ const shuffled = () => {
   }
   return order;
 };
+const inOrder = () => LINES.map((_, i) => i);
+
+type Props = {
+  visible: boolean;
+  duration?: number;
+  /** Preview build: every line in order, a small "n of 18" counter, and tap anywhere to close. */
+  preview?: boolean;
+  onClose?: () => void;
+};
 
 /**
  * Loading state: just the words "Vehicle 360", with a soft light passing through the letters on
  * a loop, and a quiet line about one of Hoora's services under it, changing every couple of
  * seconds. No spinner.
  */
-export function Vehicle360Loader({ visible }: { visible: boolean; duration?: number }) {
+export function Vehicle360Loader({ visible, preview, onClose }: Props) {
   const show = useAnimatedValue(0);
   const sweep = useAnimatedValue(0);
   const line = useAnimatedValue(1);
   const [mounted, setMounted] = useState(visible);
   const [step, setStep] = useState(0);
-  const [order, setOrder] = useState(shuffled);
+  const [order, setOrder] = useState(preview ? inOrder : shuffled);
   const [wasVisible, setWasVisible] = useState(visible);
   if (visible !== wasVisible) {
     setWasVisible(visible);
     if (visible) {
       setMounted(true);
       setStep(0);
-      setOrder(shuffled());
+      setOrder(preview ? inOrder() : shuffled());
     }
   }
 
@@ -120,12 +135,20 @@ export function Vehicle360Loader({ visible }: { visible: boolean; duration?: num
 
   return (
     <Animated.View
-      pointerEvents="none"
+      pointerEvents={onClose ? 'auto' : 'none'}
       accessibilityRole="progressbar"
       accessibilityLabel={`Vehicle 360. ${LINES[order[step]].text}`}
       accessibilityLiveRegion="polite"
       style={[styles.screen, { opacity: show }]}
     >
+      {onClose && (
+        <Pressable
+          onPress={onClose}
+          style={StyleSheet.absoluteFill}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        />
+      )}
       <View style={styles.word} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         {CHARS.map((ch, i) => {
           const at = AT[i];
@@ -175,6 +198,11 @@ export function Vehicle360Loader({ visible }: { visible: boolean; duration?: num
           {LINES[order[step]].text}
         </Text>
       </Animated.View>
+      {preview && (
+        <Text style={styles.preview}>
+          Preview · {step + 1} of {LINES.length} · tap to close
+        </Text>
+      )}
     </Animated.View>
   );
 }
@@ -239,5 +267,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: 13.5,
     color: ink.muted,
+  },
+  preview: {
+    position: 'absolute',
+    bottom: 56,
+    fontFamily: fonts.semiBold,
+    fontSize: 11.5,
+    letterSpacing: 0.2,
+    color: ink.faint,
   },
 });
