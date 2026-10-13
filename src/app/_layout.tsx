@@ -37,6 +37,7 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
         <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
         <Stack.Screen name="account-settings" options={{ headerShown: false }} />
         <Stack.Screen name="booking/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="dock-states" options={{ headerShown: false }} />
       </Stack.Protected>
     </Stack>
   );

@@ -23,11 +23,18 @@ export const TAB_ICONS: Record<string, [IconName, IconName]> = {
 export const BOTTOM_BAR_HEIGHT = 62;
 
 /** The same docked bar and icon states on iOS, Android, and web. */
-export function BottomTabBar({ state, descriptors, navigation }: TabBarProps) {
+export function BottomTabBar({ state, descriptors, navigation, merged }: TabBarProps & { merged?: boolean }) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.bar, { paddingBottom: insets.bottom, height: BOTTOM_BAR_HEIGHT + insets.bottom }]}>
+    <View
+      style={[
+        styles.bar,
+        // Inside the booking-dock panel the panel casts the shadow; the hairline stays as the divider.
+        merged && styles.barMerged,
+        { paddingBottom: insets.bottom, height: BOTTOM_BAR_HEIGHT + insets.bottom },
+      ]}
+    >
       {state.routes.map((route, index) => {
         const focused = state.index === index;
         const options = descriptors[route.key].options;
@@ -83,6 +90,11 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: -2 },
       },
     }),
+  },
+  barMerged: {
+    elevation: 0,
+    shadowOpacity: 0,
+    backgroundColor: 'transparent',
   },
   item: {
     flex: 1,
