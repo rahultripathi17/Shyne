@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -75,7 +76,8 @@ export function AddressForm({
       return;
     }
     onSave({
-      tag: v.tag,
+      // Someone else's address is saved under their name, not as Home / Work.
+      tag: v.someoneElse ? 'Other' : v.tag,
       flat: v.flat.trim(),
       floor: v.floor.trim() || undefined,
       area,
@@ -114,38 +116,44 @@ export function AddressForm({
 
       {v.someoneElse && (
         <View style={styles.receiver}>
-          <View style={styles.receiverHead}>
-            <Text style={styles.receiverTitle}>Receiver details</Text>
-            <Pressable onPress={() => void fromContacts()} hitSlop={8} accessibilityRole="button" style={styles.pick}>
-              <Ionicons name="person-add-outline" size={14} color="#1A5FD0" />
-              <Text style={styles.pickText}>Pick from contacts</Text>
-            </Pressable>
-          </View>
           <TextInput
             value={v.name}
             onChangeText={set('name')}
-            placeholder="Receiver’s name"
+            placeholder="Receiver name *"
             placeholderTextColor={T.faint}
             autoCapitalize="words"
-            style={[styles.input, tried && v.name.trim().length < 2 && styles.inputError]}
+            style={[styles.input, styles.receiverInput, tried && v.name.trim().length < 2 && styles.inputError]}
           />
-          <View style={[styles.input, styles.phoneRow, tried && v.phone.length !== 10 && styles.inputError]}>
-            <Text style={styles.code}>+91</Text>
+          <View
+            style={[
+              styles.input,
+              styles.receiverInput,
+              styles.phoneRow,
+              tried && v.phone.length !== 10 && styles.inputError,
+            ]}
+          >
             <TextInput
               value={v.phone}
               onChangeText={(t) => set('phone')(t.replace(/[^0-9]/g, '').slice(0, 10))}
-              placeholder="Receiver’s mobile number"
+              placeholder="Receiver number *"
               placeholderTextColor={T.faint}
               keyboardType="phone-pad"
               style={styles.phoneInput}
             />
+            <Pressable
+              onPress={() => void fromContacts()}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Choose from your contacts"
+            >
+              <MaterialCommunityIcons name="contacts-outline" size={22} color={T.ink} />
+            </Pressable>
           </View>
-          <Text style={styles.hint}>Our partner will contact them for this address.</Text>
         </View>
       )}
 
-      <Text style={styles.label}>Save address as *</Text>
-      <View style={styles.tags}>
+      {!v.someoneElse && <Text style={styles.label}>Save address as *</Text>}
+      <View style={[styles.tags, v.someoneElse && styles.hidden]}>
         {TAGS.map(({ tag, icon }) => {
           const on = v.tag === tag;
           return (
@@ -285,34 +293,16 @@ const styles = StyleSheet.create({
   receiver: {
     marginTop: 12,
     padding: 12,
-    borderRadius: 10,
-    backgroundColor: '#F7F8FA',
-    gap: 8,
+    borderRadius: 14,
+    backgroundColor: '#F4F5F8',
+    gap: 10,
   },
-  receiverHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  receiverInput: {
+    height: 52,
+    borderRadius: 12,
   },
-  receiverTitle: {
-    fontFamily: fonts.semiBold,
-    fontSize: 13,
-    color: T.text,
-  },
-  pick: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  pickText: {
-    fontFamily: fonts.semiBold,
-    fontSize: 12.5,
-    color: '#1A5FD0',
-  },
-  hint: {
-    fontFamily: fonts.regular,
-    fontSize: 11.5,
-    color: T.muted,
+  hidden: {
+    display: 'none',
   },
   tags: {
     flexDirection: 'row',
@@ -361,11 +351,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  code: {
-    fontFamily: fonts.medium,
-    fontSize: 14,
-    color: T.text,
   },
   phoneInput: {
     flex: 1,

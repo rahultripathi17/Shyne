@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddressRow } from '../../components/booking/AddressBar';
 import { FormSheet } from '../../components/booking/FormSheet';
-import { ContactCard, ContactSheet, useContactOptions } from '../../components/booking/ServiceContact';
+import { ContactCard, ContactSheet, receiverContact, useContactOptions } from '../../components/booking/ServiceContact';
 import { PolicySheet } from '../../components/booking/BookingSheets';
 import { formatPlate } from '../../components/PlateField';
 import { Sheet } from '../../components/rewards/ClaimForm';
@@ -33,7 +33,7 @@ import {
 } from '../../data/bookingFlow';
 import { setPendingBooking, getPendingBooking, type PendingBooking } from '../../data/pendingBooking';
 import { usePlaceBooking } from '../../lib/placeBooking';
-import { addressLine, useAppStore } from '../../store/AppStore';
+import { addressLabel, addressLine, useAppStore } from '../../store/AppStore';
 
 // Checkout (Figma "OD booking - checkout" 11978:4509): review, carcare deal, coupons and points,
 // who the partner should contact, more vehicles, tip, bill with Hoora Black, policy, and pay.
@@ -56,14 +56,17 @@ export default function CheckoutScreen() {
   const [black, setBlack] = useState(false);
   const [plate, setPlate] = useState(selectedCar?.plate ?? '');
   const [tried, setTried] = useState(false);
-  // An address saved "for someone else" carries the receiver; they're the default contact.
+  // Booking for someone else (their saved address): they are the only contact, locked.
+  // Booking for yourself: you, or someone you add (driver, security, family, friend).
   const savedAddress = addresses.find(
-    (a) => location && addressLine(a) === location.address && a.tag === location.label,
+    (a) => location && addressLine(a) === location.address && [a.tag, addressLabel(a)].includes(location.label),
   );
   const receiver = savedAddress?.contact;
-  const contactOptions = useContactOptions(receiver);
-  const [contactId, setContactId] = useState(receiver ? 'receiver' : 'me');
-  const contact = contactOptions.find((c) => c.id === contactId) ?? contactOptions[0];
+  const contactOptions = useContactOptions();
+  const [contactId, setContactId] = useState('me');
+  const contact = receiver
+    ? receiverContact(receiver)
+    : (contactOptions.find((c) => c.id === contactId) ?? contactOptions[0]);
   const [sheet, setSheet] = useState<'policy' | 'bill' | 'contact' | 'later' | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [left, setLeft] = useState(OFFER_SECONDS);
@@ -296,7 +299,7 @@ export default function CheckoutScreen() {
           </View>
           {tried && !plateOk && <Text style={styles.err}>Enter a valid vehicle number (e.g. MH02AB1234)</Text>}
           <Text style={styles.label}>Contact person</Text>
-          <ContactCard contact={contact} onChange={() => setSheet('contact')} />
+          <ContactCard contact={contact} onChange={receiver ? undefined : () => setSheet('contact')} />
         </Block>
 
         {/* More vehicles */}

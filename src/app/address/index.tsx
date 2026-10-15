@@ -7,21 +7,31 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FormSheet } from '../../components/booking/FormSheet';
 import { fonts, noBounce } from '../../components/theme';
 import { Toast, useToast } from '../../components/Toast';
-import { TopBar } from '../../components/TopBar';
 import { T } from '../../components/tracking/trackTheme';
 import { closeAfterSave } from '../../data/bookingFlow';
-import { currentPosition, type Place, searchPlaces } from '../../lib/geocode';
-import { addressLine, type AddressTag, type SavedAddress, useAppStore } from '../../store/AppStore';
+import {
+  currentPosition,
+  distanceLabel,
+  lastKnownPosition,
+  type LatLng,
+  type Place,
+  searchPlaces,
+} from '../../lib/geocode';
+import { addressLabel, addressLine, type AddressTag, type SavedAddress, useAppStore } from '../../store/AppStore';
 
-// Address Selection: search any place, use where you are, add a new address, or pick a saved one.
-// Picking makes it the address everywhere (Home header, Car Services, Slot and Checkout).
+// Select your location: search, two quick actions, then every saved address in one list.
+// An address saved for someone else is listed under that person's name with a person icon.
+// Picking one makes it the address everywhere (Home header, Car Services, Slot and Checkout).
 
-const BLUE = '#1A5FD0';
-const ICON: Record<AddressTag, { name: 'home' | 'briefcase' | 'location'; bg: string; fg: string }> = {
-  Home: { name: 'home', bg: '#FFF4C2', fg: '#8A6400' },
-  Work: { name: 'briefcase', bg: '#E8F0FE', fg: BLUE },
-  Other: { name: 'location', bg: '#F1F2F4', fg: '#4A4A4A' },
+const ACCENT = '#D97706';
+const ICON: Record<AddressTag, 'home-outline' | 'briefcase-outline' | 'navigate-outline'> = {
+  Home: 'home-outline',
+  Work: 'briefcase-outline',
+  Other: 'navigate-outline',
 };
+
+/** What a saved address is called in the list: the receiver's name, or its tag. */
+const titleOf = (a: SavedAddress) => (a.contact ? a.contact.name : a.tag === 'Work' ? 'Office' : a.tag);
 
 export default function AddressSelectionScreen() {
   const insets = useSafeAreaInsets();
@@ -33,7 +43,10 @@ export default function AddressSelectionScreen() {
   const [locating, setLocating] = useState(false);
   const [menu, setMenu] = useState<SavedAddress | null>(null);
   const [deleting, setDeleting] = useState<SavedAddress | null>(null);
-  const isCurrent = (a: SavedAddress) => location?.address === addressLine(a) && location.label === a.tag;
+  const [here, setHere] = useState<LatLng | null>(null);
+
+  const isCurrent = (a: SavedAddress) =>
+    location?.address === addressLine(a) && [a.tag, addressLabel(a)].includes(location.label);
   // The selected address first, then the rest in saved order.
   const sorted = [...addresses].sort((x, y) => Number(isCurrent(y)) - Number(isCurrent(x)));
 
@@ -44,6 +57,11 @@ export default function AddressSelectionScreen() {
       if (router.canGoBack()) router.back();
     }, []),
   );
+
+  // Distance under each address, when location is already allowed (never prompts here).
+  useEffect(() => {
+    void lastKnownPosition().then(setHere);
+  }, []);
 
   // Live suggestions while typing (OpenStreetMap search).
   const q = query.trim();
@@ -70,15 +88,19 @@ export default function AddressSelectionScreen() {
 
   return (
     <View style={styles.screen}>
-      <TopBar title="Select address" topInset={insets.top} onBack={() => router.back()} />
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
+        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+          <Ionicons name="arrow-back" size={22} color={T.text} />
+        </Pressable>
+        <Text style={styles.title}>Select your location</Text>
+      </View>
 
       <View style={styles.searchWrap}>
         <View style={styles.search}>
-          <Ionicons name="search" size={18} color={T.gold} />
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search area, street or building"
+            placeholder="Search an area or address"
             placeholderTextColor={T.faint}
             returnKeyType="search"
             style={styles.searchInput}
@@ -89,7 +111,9 @@ export default function AddressSelectionScreen() {
             <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear">
               <Ionicons name="close-circle" size={18} color={T.faint} />
             </Pressable>
-          ) : null}
+          ) : (
+            <Ionicons name="search" size={20} color={T.muted} />
+          )}
         </View>
       </View>
 
@@ -99,26 +123,26 @@ export default function AddressSelectionScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
       >
         {typing ? (
-          <View style={styles.results}>
+          <View style={styles.group}>
             {q.length < 3 && <Text style={styles.hint}>Type at least 3 letters</Text>}
             {q.length >= 3 && !searching && results.length === 0 && (
               <Text style={styles.hint}>No places found. Try a nearby landmark or area.</Text>
             )}
-            {(q.length >= 3 ? results : []).map((p) => (
+            {(q.length >= 3 ? results : []).map((p, i) => (
               <Pressable
                 key={`${p.lat},${p.lng}`}
                 onPress={() => openMap({ lat: String(p.lat), lng: String(p.lng) })}
                 accessibilityRole="button"
-                style={styles.result}
+                style={[styles.row, i > 0 && styles.rowLine]}
               >
-                <View style={styles.resultIcon}>
-                  <Ionicons name="location-outline" size={17} color={T.ink} />
+                <View style={styles.tile}>
+                  <Ionicons name="location-outline" size={18} color={T.text} />
                 </View>
                 <View style={styles.flex}>
-                  <Text style={styles.resultTitle} numberOfLines={1}>
+                  <Text style={styles.rowTitle} numberOfLines={1}>
                     {p.title}
                   </Text>
-                  <Text style={styles.resultLine} numberOfLines={2}>
+                  <Text style={styles.rowAddr} numberOfLines={2}>
                     {p.line}
                   </Text>
                 </View>
@@ -127,50 +151,45 @@ export default function AddressSelectionScreen() {
           </View>
         ) : (
           <>
-            <View style={styles.actions}>
-              <Pressable onPress={() => void locateMe()} accessibilityRole="button" style={styles.action}>
-                <View style={[styles.actionIcon, { backgroundColor: '#E8F0FE' }]}>
-                  {locating ? (
-                    <ActivityIndicator size="small" color={BLUE} />
-                  ) : (
-                    <Ionicons name="locate" size={18} color={BLUE} />
-                  )}
-                </View>
-                <View style={styles.flex}>
-                  <Text style={[styles.actionTitle, { color: BLUE }]}>Use current location</Text>
-                  <Text style={styles.actionSub}>Using your phone’s GPS</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={T.faint} />
+            <View style={styles.quick}>
+              <Pressable
+                onPress={() => void locateMe()}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.quickTile, pressed && styles.pressed]}
+              >
+                {locating ? (
+                  <ActivityIndicator size="small" color={ACCENT} />
+                ) : (
+                  <Ionicons name="locate-outline" size={22} color={ACCENT} />
+                )}
+                <Text style={styles.quickText}>Use Current{'
+'}Location</Text>
               </Pressable>
-              <View style={styles.actionLine} />
-              <Pressable onPress={() => openMap()} accessibilityRole="button" style={styles.action}>
-                <View style={[styles.actionIcon, { backgroundColor: '#F1F2F4' }]}>
-                  <Ionicons name="add" size={20} color={T.text} />
-                </View>
-                <View style={styles.flex}>
-                  <Text style={styles.actionTitle}>Add new address</Text>
-                  <Text style={styles.actionSub}>Pick the spot on the map</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={T.faint} />
+              <Pressable
+                onPress={() => openMap()}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.quickTile, pressed && styles.pressed]}
+              >
+                <Ionicons name="add-circle-outline" size={22} color={ACCENT} />
+                <Text style={styles.quickText}>Add New{'
+'}Address</Text>
               </Pressable>
             </View>
 
-            <Text style={styles.section}>Saved addresses{addresses.length ? ` (${addresses.length})` : ''}</Text>
+            <Text style={styles.section}>SAVED ADDRESSES</Text>
             {addresses.length === 0 ? (
-              <View style={styles.empty}>
-                <View style={styles.emptyIcon}>
-                  <Ionicons name="location-outline" size={24} color={T.muted} />
-                </View>
+              <View style={[styles.group, styles.empty]}>
+                <Ionicons name="location-outline" size={24} color={T.muted} />
                 <Text style={styles.emptyTitle}>No saved addresses yet</Text>
                 <Text style={styles.emptyText}>Save home or work once and book in a tap next time.</Text>
               </View>
             ) : (
-              <View style={styles.list}>
-                {sorted.map((a) => {
+              <View style={styles.group}>
+                {sorted.map((a, i) => {
                   const current = isCurrent(a);
-                  const icon = ICON[a.tag];
+                  const forSomeone = !!a.contact;
                   return (
-                    <View key={a.id} style={[styles.card, current && styles.cardOn]}>
+                    <View key={a.id} style={[styles.rowWrap, i > 0 && styles.rowLine]}>
                       <Pressable
                         onPress={() => {
                           pickAddress(a.id);
@@ -178,53 +197,39 @@ export default function AddressSelectionScreen() {
                         }}
                         accessibilityRole="radio"
                         accessibilityState={{ selected: current }}
-                        accessibilityLabel={`${a.tag}, ${addressLine(a)}`}
-                        style={({ pressed }) => [styles.cardTap, pressed && styles.cardPressed]}
+                        accessibilityLabel={`${titleOf(a)}, ${addressLine(a)}`}
+                        style={({ pressed }) => [styles.row, styles.rowFlex, pressed && styles.pressed]}
                       >
-                        {/* Header: icon, tag and status on one line, menu at the end */}
-                        <View style={styles.cardHead}>
-                          <View style={[styles.tagIcon, { backgroundColor: icon.bg }]}>
-                            <Ionicons name={icon.name} size={15} color={icon.fg} />
-                          </View>
-                          <Text style={styles.tag} numberOfLines={1}>
-                            {a.tag}
-                          </Text>
-                          {current && (
-                            <View style={styles.current}>
-                              <Ionicons name="checkmark-circle" size={12} color={T.text} />
-                              <Text style={styles.currentText}>Selected</Text>
-                            </View>
-                          )}
+                        <View style={styles.tile}>
+                          <Ionicons name={forSomeone ? 'person-outline' : ICON[a.tag]} size={18} color={T.text} />
+                          {here && a.lat && a.lng ? (
+                            <Text style={styles.distance}>{distanceLabel(here, { lat: a.lat, lng: a.lng })}</Text>
+                          ) : null}
                         </View>
-
-                        {/* Body, aligned under the tag */}
-                        <View style={styles.cardBody}>
-                          <Text style={styles.addr} numberOfLines={2}>
+                        <View style={styles.flex}>
+                          <View style={styles.titleRow}>
+                            <Text style={styles.rowTitle} numberOfLines={1}>
+                              {titleOf(a)}
+                            </Text>
+                            {current && (
+                              <View style={styles.selected}>
+                                <Text style={styles.selectedText}>SELECTED</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.rowAddr} numberOfLines={2}>
                             {addressLine(a)}
                           </Text>
-                          {a.landmark ? (
-                            <Text style={styles.landmark} numberOfLines={1}>
-                              Near {a.landmark}
-                            </Text>
-                          ) : null}
-                          {a.contact ? (
-                            <View style={styles.contactRow}>
-                              <Ionicons name="person-outline" size={13} color={T.muted} />
-                              <Text style={styles.contactText} numberOfLines={1}>
-                                For <Text style={styles.contactName}>{a.contact.name}</Text>
-                              </Text>
-                            </View>
-                          ) : null}
                         </View>
                       </Pressable>
                       <Pressable
                         onPress={() => setMenu(a)}
                         hitSlop={8}
                         accessibilityRole="button"
-                        accessibilityLabel={`More options for ${a.tag}`}
+                        accessibilityLabel={`More options for ${titleOf(a)}`}
                         style={({ pressed }) => [styles.more, pressed && styles.morePressed]}
                       >
-                        <Ionicons name="ellipsis-horizontal" size={18} color={T.ink} />
+                        <Ionicons name="ellipsis-vertical" size={18} color={T.text} />
                       </Pressable>
                     </View>
                   );
@@ -238,7 +243,7 @@ export default function AddressSelectionScreen() {
       {/* Edit / delete */}
       <FormSheet
         visible={!!menu}
-        title={menu?.tag ?? ''}
+        title={menu ? titleOf(menu) : ''}
         subtitle={menu ? addressLine(menu) : ''}
         onClose={() => setMenu(null)}
       >
@@ -302,178 +307,150 @@ export default function AddressSelectionScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F6F7F9',
+    backgroundColor: '#F4F5F8',
   },
   flex: {
     flex: 1,
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  title: {
+    fontFamily: fonts.semiBold,
+    fontSize: 17,
+    color: T.text,
   },
   searchWrap: {
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
   search: {
-    height: 46,
-    paddingHorizontal: 12,
+    height: 48,
+    paddingLeft: 16,
+    paddingRight: 14,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E6E7EB',
+    borderColor: '#DCDEE3',
+    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
   searchInput: {
     flex: 1,
-    height: 46,
+    height: 48,
     fontFamily: fonts.regular,
     fontSize: 14,
     color: T.text,
   },
-  results: {
+  quick: {
     marginHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
-  },
-  hint: {
-    padding: 16,
-    textAlign: 'center',
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: T.muted,
-  },
-  result: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#EEEFF2',
-  },
-  resultIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#F4F5F7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  resultTitle: {
-    fontFamily: fonts.medium,
-    fontSize: 14,
-    color: T.text,
-  },
-  resultLine: {
-    marginTop: 1,
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    lineHeight: 16,
-    color: T.muted,
-  },
-  actions: {
-    marginHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-  },
-  action: {
-    minHeight: 62,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  actionLine: {
-    marginLeft: 62,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#E6E7EB',
-  },
-  actionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionTitle: {
-    fontFamily: fonts.semiBold,
-    fontSize: 14,
-    color: T.text,
-  },
-  actionSub: {
-    marginTop: 1,
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: T.muted,
-  },
-  section: {
-    marginTop: 22,
-    marginBottom: 10,
-    marginHorizontal: 20,
-    fontFamily: fonts.semiBold,
-    fontSize: 13,
-    letterSpacing: 0.2,
-    color: T.muted,
-  },
-  list: {
-    marginHorizontal: 16,
-    gap: 12,
-  },
-  card: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#ECEDF0',
-    backgroundColor: '#FFFFFF',
-  },
-  cardOn: {
-    borderColor: T.text,
-  },
-  cardTap: {
-    paddingLeft: 16,
-    paddingRight: 52,
-    paddingTop: 14,
-    paddingBottom: 16,
-  },
-  cardPressed: {
-    opacity: 0.85,
-  },
-  cardHead: {
-    minHeight: 32,
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
   },
-  tagIcon: {
-    width: 32,
-    height: 32,
+  quickTile: {
+    flex: 1,
+    minHeight: 84,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E3E5E9',
+    backgroundColor: '#FFFFFF',
+    gap: 8,
+  },
+  quickText: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    lineHeight: 17,
+    color: T.ink,
+  },
+  section: {
+    marginTop: 24,
+    marginBottom: 10,
+    marginHorizontal: 22,
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    letterSpacing: 1.2,
+    color: '#8A8D94',
+  },
+  group: {
+    marginHorizontal: 16,
+    paddingHorizontal: 14,
     borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  rowWrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  rowLine: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E3E5E9',
+  },
+  row: {
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  rowFlex: {
+    flex: 1,
+  },
+  tile: {
+    width: 50,
+    minHeight: 50,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#F2F3F5',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 3,
   },
-  tag: {
+  distance: {
+    fontFamily: fonts.medium,
+    fontSize: 10,
+    color: T.ink,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  rowTitle: {
     flexShrink: 1,
     fontFamily: fonts.semiBold,
     fontSize: 15,
     color: T.text,
   },
-  current: {
-    paddingHorizontal: 7,
+  selected: {
+    paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
-    backgroundColor: '#F2F3F5',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
+    backgroundColor: T.text,
   },
-  currentText: {
+  selectedText: {
     fontFamily: fonts.semiBold,
-    fontSize: 10.5,
-    color: T.text,
+    fontSize: 9.5,
+    letterSpacing: 0.6,
+    color: '#FFFFFF',
+  },
+  rowAddr: {
+    marginTop: 3,
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#5F636B',
   },
   more: {
-    position: 'absolute',
-    top: 14,
-    right: 10,
+    marginTop: 12,
+    marginRight: -6,
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -483,61 +460,25 @@ const styles = StyleSheet.create({
   morePressed: {
     backgroundColor: '#F2F3F5',
   },
-  cardBody: {
-    marginTop: 8,
-    paddingLeft: 42,
-  },
-  addr: {
+  hint: {
+    paddingVertical: 16,
+    textAlign: 'center',
     fontFamily: fonts.regular,
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: '#5F636B',
-  },
-  landmark: {
-    marginTop: 2,
-    fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: 13,
     color: T.muted,
-  },
-  contactRow: {
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  contactText: {
-    flexShrink: 1,
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: T.muted,
-  },
-  contactName: {
-    fontFamily: fonts.medium,
-    color: T.text,
   },
   empty: {
-    marginHorizontal: 16,
     paddingVertical: 28,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
-  },
-  emptyIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#F4F5F7',
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 4,
   },
   emptyTitle: {
-    marginTop: 10,
+    marginTop: 6,
     fontFamily: fonts.semiBold,
     fontSize: 14,
     color: T.text,
   },
   emptyText: {
-    marginTop: 3,
     fontFamily: fonts.regular,
     fontSize: 12.5,
     color: T.muted,

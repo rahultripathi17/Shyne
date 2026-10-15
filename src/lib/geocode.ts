@@ -105,3 +105,25 @@ export async function currentPosition(): Promise<
     return { ok: false, reason: 'unavailable' };
   }
 }
+
+/** Where the phone last was, without prompting: null unless location access is already allowed. */
+export async function lastKnownPosition(): Promise<LatLng | null> {
+  try {
+    const { status } = await Location.getForegroundPermissionsAsync();
+    if (status !== 'granted') return null;
+    const pos = await Location.getLastKnownPositionAsync();
+    return pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Straight-line distance, shown as "850 m" or "6.0 km". */
+export function distanceLabel(a: LatLng, b: LatLng) {
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  const km = 6371 * 2 * Math.asin(Math.sqrt(h));
+  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+}

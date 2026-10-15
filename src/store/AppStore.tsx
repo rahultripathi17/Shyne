@@ -55,6 +55,9 @@ export type SavedAddress = {
   contact?: { name: string; phone: string };
 };
 
+/** What an address is called in the header and address bars: the receiver's name, or its tag. */
+export const addressLabel = (a: SavedAddress) => a.contact?.name ?? a.tag;
+
 /** One line for lists and the address bars. */
 export const addressLine = (a: SavedAddress) =>
   [a.flat, a.floor && `Floor ${a.floor}`, a.area].filter(Boolean).join(', ');
@@ -232,14 +235,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           const list = s.addresses ?? [];
           return {
             addresses: id ? list.map((a) => (a.id === id ? saved : a)) : [saved, ...list],
-            location: { label: saved.tag, address: addressLine(saved), detected: false },
+            location: { label: addressLabel(saved), address: addressLine(saved), detected: false },
           };
         });
       },
       pickAddress: (id) =>
         update((s) => {
           const a = s.addresses?.find((x) => x.id === id);
-          return a ? { location: { label: a.tag, address: addressLine(a), detected: false } } : {};
+          return a ? { location: { label: addressLabel(a), address: addressLine(a), detected: false } } : {};
         }),
       saveContact: (contact) => {
         const existing = state.contacts?.find((c) => c.phone === contact.phone);

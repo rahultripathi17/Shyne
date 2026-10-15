@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -24,35 +25,50 @@ const initials = (name: string) =>
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('') || '?';
 
-/** Everyone who can be the contact: you, the address's receiver, then saved contacts. */
-export function useContactOptions(receiver?: { name: string; phone: string }): ServiceContact[] {
+/**
+ * Who can be the contact when you book for yourself: you, then the people you've added (driver,
+ * security, family, friend). Booking for someone else has one contact only: that person (see
+ * `receiverContact`).
+ */
+export function useContactOptions(): ServiceContact[] {
   const { name, phone, contacts = [] } = useAppStore();
   const me = { id: 'me', name: name ?? 'You', phone: (phone ?? '').replace(/\D/g, '').slice(-10), tag: 'You' };
   const list: ServiceContact[] = [me];
-  if (receiver) list.push({ id: 'receiver', ...receiver, tag: 'This address' });
   for (const c of contacts) {
-    if (c.phone !== me.phone && c.phone !== receiver?.phone)
-      list.push({ id: c.id, name: c.name, phone: c.phone, tag: c.label });
+    if (c.phone !== me.phone) list.push({ id: c.id, name: c.name, phone: c.phone, tag: c.label });
   }
   return list;
 }
 
+/** The receiver of an address saved for someone else: the booking's only contact. */
+export const receiverContact = (r: { name: string; phone: string }): ServiceContact => ({
+  id: 'receiver',
+  name: r.name,
+  phone: r.phone,
+});
+
 /** The one line that tells people who'll be called. */
 export const contactNote = (c: ServiceContact) =>
-  c.id === 'me' ? 'Our partner will call you on arrival.' : `Our partner will call ${c.name.split(' ')[0]} on arrival.`;
+  c.id === 'me'
+    ? 'Our partner will call you on arrival.'
+    : c.id === 'receiver'
+      ? `Booking for ${c.name.split(' ')[0]}. Our partner will call ${c.name.split(' ')[0]} on arrival.`
+      : `Our partner will call ${c.name.split(' ')[0]} on arrival.`;
 
 /** Roles worth a tag. The address's receiver needs none — the card already says who they are. */
 const showTag = (c: ServiceContact) => c.id !== 'me' && c.id !== 'receiver' && !!c.tag;
 
 /** Checkout card: the one person our partner contacts, with Change. */
-export function ContactCard({ contact, onChange }: { contact: ServiceContact; onChange: () => void }) {
+export function ContactCard({ contact, onChange }: { contact: ServiceContact; onChange?: () => void }) {
   const me = contact.id === 'me';
+  const locked = !onChange;
   return (
     <Pressable
       onPress={onChange}
-      accessibilityRole="button"
-      accessibilityLabel={`Contact person ${me ? 'you' : contact.name}. Change`}
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
+      disabled={locked}
+      accessibilityRole={locked ? 'text' : 'button'}
+      accessibilityLabel={`Contact person ${me ? 'you' : contact.name}${locked ? '' : '. Change'}`}
+      style={({ pressed }) => [styles.card, pressed && !locked && { opacity: 0.85 }]}
     >
       <View style={styles.cardTop}>
         <View style={[styles.avatar, me && styles.avatarMe]}>
@@ -75,7 +91,11 @@ export function ContactCard({ contact, onChange }: { contact: ServiceContact; on
           </View>
           <Text style={styles.phone}>+91 {contact.phone}</Text>
         </View>
-        <Text style={styles.change}>Change</Text>
+        {locked ? (
+          <Ionicons name="lock-closed-outline" size={16} color={T.muted} />
+        ) : (
+          <Text style={styles.change}>Change</Text>
+        )}
       </View>
       <View style={styles.cardNote}>
         <Ionicons name="call-outline" size={13} color={T.muted} />
@@ -138,9 +158,13 @@ export function ContactSheet({
   return (
     <FormSheet
       visible={visible && !picking}
-      title="Who should we contact?"
-      subtitle="Our partner will call this person on arrival and for any updates."
-      onClose={onClose}
+      title={adding ? 'Add contact' : 'Who should we contact?'}
+      subtitle={
+        adding
+          ? 'Someone who’ll be with the vehicle, like your driver.'
+          : 'Our partner will call this person on arrival and for any updates.'
+      }
+      onClose={adding ? () => setAdding(false) : onClose}
       notice={notice}
       footer={
         adding ? (
@@ -200,29 +224,31 @@ export function ContactSheet({
         </View>
       ) : (
         <View style={styles.add}>
-          <Pressable onPress={() => void fromPhone()} accessibilityRole="button" style={styles.fromPhone}>
-            <Ionicons name="people-outline" size={17} color="#1A5FD0" />
-            <Text style={styles.fromPhoneText}>Choose from phone contacts</Text>
-          </Pressable>
-          <Text style={styles.or}>or enter details</Text>
           <TextInput
             value={draft.name}
             onChangeText={(t) => setDraft((d) => ({ ...d, name: t }))}
-            placeholder="Name"
+            placeholder="Name *"
             placeholderTextColor={T.faint}
             autoCapitalize="words"
             style={styles.input}
           />
           <View style={[styles.input, styles.phoneRow]}>
-            <Text style={styles.code}>+91</Text>
             <TextInput
               value={draft.phone}
               onChangeText={(t) => setDraft((d) => ({ ...d, phone: t.replace(/[^0-9]/g, '').slice(0, 10) }))}
-              placeholder="Mobile number"
+              placeholder="Mobile number *"
               placeholderTextColor={T.faint}
               keyboardType="phone-pad"
               style={styles.phoneInput}
             />
+            <Pressable
+              onPress={() => void fromPhone()}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Choose from your contacts"
+            >
+              <MaterialCommunityIcons name="contacts-outline" size={22} color={T.ink} />
+            </Pressable>
           </View>
           <Text style={styles.labelHead}>This person is your</Text>
           <View style={styles.labels}>
@@ -241,9 +267,6 @@ export function ContactSheet({
               );
             })}
           </View>
-          <Pressable onPress={() => setAdding(false)} accessibilityRole="button" style={styles.back}>
-            <Text style={styles.backText}>Back to contacts</Text>
-          </Pressable>
         </View>
       )}
     </FormSheet>
@@ -375,32 +398,10 @@ const styles = StyleSheet.create({
     marginTop: 14,
     gap: 10,
   },
-  fromPhone: {
-    height: 46,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#BFD2F3',
-    backgroundColor: '#F5F8FE',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  fromPhoneText: {
-    fontFamily: fonts.semiBold,
-    fontSize: 13.5,
-    color: '#1A5FD0',
-  },
-  or: {
-    alignSelf: 'center',
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: T.muted,
-  },
   input: {
-    height: 46,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    height: 52,
+    paddingHorizontal: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E3E5E9',
     fontFamily: fonts.regular,
@@ -411,11 +412,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  code: {
-    fontFamily: fonts.medium,
-    fontSize: 14,
-    color: T.text,
   },
   phoneInput: {
     flex: 1,
@@ -453,14 +449,5 @@ const styles = StyleSheet.create({
   },
   labelTextOn: {
     color: '#FFFFFF',
-  },
-  back: {
-    alignSelf: 'center',
-    paddingVertical: 8,
-  },
-  backText: {
-    fontFamily: fonts.semiBold,
-    fontSize: 13,
-    color: '#1A5FD0',
   },
 });
