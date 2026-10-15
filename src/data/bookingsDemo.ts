@@ -62,6 +62,12 @@ export type BookingItem = {
   placed: string;
   amount: number;
   amountDue?: boolean;
+  /** Bookings made in the app: the full service address. */
+  address?: string;
+  /** Booked for someone else. */
+  bookedFor?: { name: string; phone: string };
+  /** Who the partner calls for this booking. */
+  contact?: { name: string; phone: string; role: string };
   action: string;
   /** Primary (dark) for tracking and paying; quiet outline for viewing and reordering. */
   primary: boolean;

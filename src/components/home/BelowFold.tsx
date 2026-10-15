@@ -24,7 +24,7 @@ export function ChallanBanner({ plate, onPress }: { plate?: string; onPress: () 
             {due ? '1 pending challan' : 'Check your challans'}
           </Text>
           <Text style={styles.alertBody} numberOfLines={1}>
-            {due ? `On ${formatPlate(plate)} · pay to avoid extra fines` : 'Instant check with your vehicle number'}
+            {due ? `On ${formatPlate(plate)}` : 'Instant check with your vehicle number'}
           </Text>
         </View>
         <View style={[styles.payBtn, due && styles.payBtnDue]}>

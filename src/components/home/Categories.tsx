@@ -97,14 +97,13 @@ export const GROUPS: Group[] = [
 export function AllServices({ width, onPress }: { width: number; onPress: (id: CategoryId) => void }) {
   const inner = width - 24; // panel padding
   const colW = inner / 4;
-  const art = { w: Math.min(48, colW - 20), h: 36 };
+  const art = { w: Math.min(52, colW - 18), h: 40 };
 
-  // One panel, three short groups: label, then four services. Hairlines between groups.
+  // One card per group: its name, then its four services in a row.
   return (
-    <View style={styles.panel}>
-      <Text style={styles.panelTitle}>All services</Text>
-      {GROUPS.map((g, gi) => (
-        <View key={g.title} style={gi > 0 && styles.groupLine}>
+    <View style={styles.groups}>
+      {GROUPS.map((g) => (
+        <View key={g.title} style={styles.panel}>
           <Text style={styles.groupTitle}>{g.title}</Text>
           <View style={styles.row}>
             {g.tiles.map((t) => (
@@ -173,31 +172,22 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     color: ink.muted,
   },
+  groups: {
+    gap: 12,
+  },
   panel: {
     ...card,
     paddingHorizontal: 12,
     paddingTop: 14,
     paddingBottom: 4,
   },
-  panelTitle: {
-    marginLeft: 2,
-    marginBottom: 10,
+  groupTitle: {
+    marginLeft: 4,
+    marginBottom: 12,
     fontFamily: fonts.semiBold,
-    fontSize: 15,
+    fontSize: 14.5,
     letterSpacing: -0.2,
     color: ink.text,
-  },
-  groupLine: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E6E7EB',
-    paddingTop: 10,
-  },
-  groupTitle: {
-    marginLeft: 2,
-    marginBottom: 8,
-    fontFamily: fonts.medium,
-    fontSize: 11.5,
-    color: ink.muted,
   },
   row: {
     flexDirection: 'row',
@@ -207,8 +197,8 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   artWrap: {
-    width: 48,
-    height: 40,
+    width: 52,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },

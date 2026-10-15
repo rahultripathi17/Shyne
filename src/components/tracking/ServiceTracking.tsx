@@ -238,7 +238,26 @@ export function ServiceTracking({ item, stage: initialStage }: { item: BookingIt
             <Ionicons name="location-outline" size={18} color={T.ink} />
             <Text style={styles.blockTitle}>Your Address Details</Text>
           </View>
-          <Text style={styles.address}>{TRACK.address}</Text>
+          <Text style={styles.address}>{item.address ?? TRACK.address}</Text>
+          {item.contact && (
+            <View style={styles.contactRow}>
+              <Ionicons name="call-outline" size={15} color={T.ink} />
+              <Text style={styles.contactText} numberOfLines={2}>
+                Partner will call{' '}
+                <Text style={styles.contactStrong}>{item.contact.role === 'You' ? 'you' : item.contact.name}</Text>
+                {item.contact.role !== 'You' && item.contact.role !== 'Booked for' ? ` (${item.contact.role})` : ''}
+                {` · +91 ${item.contact.phone}`}
+              </Text>
+            </View>
+          )}
+          {item.bookedFor && (
+            <View style={styles.contactRow}>
+              <Ionicons name="person-outline" size={15} color={T.ink} />
+              <Text style={styles.contactText} numberOfLines={1}>
+                Booked for <Text style={styles.contactStrong}>{item.bookedFor.name}</Text>
+              </Text>
+            </View>
+          )}
         </Block>
 
         {show.calendar && (
@@ -976,6 +995,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     color: T.muted,
+  },
+  contactRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  contactText: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 12.5,
+    color: T.ink,
+  },
+  contactStrong: {
+    fontFamily: fonts.semiBold,
+    color: T.text,
   },
   calText: {
     marginLeft: 4,

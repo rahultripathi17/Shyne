@@ -39,21 +39,22 @@ export function useContactOptions(receiver?: { name: string; phone: string }): S
 
 /** The one line that tells people who'll be called. */
 export const contactNote = (c: ServiceContact) =>
-  c.id === 'me'
-    ? 'Our partner will call you for this service.'
-    : `Our partner will call ${c.name.split(' ')[0]}${c.tag && c.tag !== 'This address' ? ` (${c.tag.toLowerCase()})` : ''} for this service, not you.`;
+  c.id === 'me' ? 'Our partner will call you on arrival.' : `Our partner will call ${c.name.split(' ')[0]} on arrival.`;
 
-/** Checkout row: who will be contacted, with Change. */
+/** Roles worth a tag. The address's receiver needs none — the card already says who they are. */
+const showTag = (c: ServiceContact) => c.id !== 'me' && c.id !== 'receiver' && !!c.tag;
+
+/** Checkout card: the one person our partner contacts, with Change. */
 export function ContactCard({ contact, onChange }: { contact: ServiceContact; onChange: () => void }) {
   const me = contact.id === 'me';
   return (
-    <View>
-      <Pressable
-        onPress={onChange}
-        accessibilityRole="button"
-        accessibilityLabel={`Partner will contact ${contact.name}. Change`}
-        style={styles.card}
-      >
+    <Pressable
+      onPress={onChange}
+      accessibilityRole="button"
+      accessibilityLabel={`Contact person ${me ? 'you' : contact.name}. Change`}
+      style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
+    >
+      <View style={styles.cardTop}>
         <View style={[styles.avatar, me && styles.avatarMe]}>
           {me ? (
             <Ionicons name="person" size={16} color={T.text} />
@@ -62,12 +63,11 @@ export function ContactCard({ contact, onChange }: { contact: ServiceContact; on
           )}
         </View>
         <View style={styles.flex}>
-          <Text style={styles.cardLabel}>Partner will contact</Text>
           <View style={styles.nameRow}>
             <Text style={styles.name} numberOfLines={1}>
-              {me ? 'Me' : contact.name}
+              {me ? `${contact.name} (You)` : contact.name}
             </Text>
-            {!me && contact.tag ? (
+            {showTag(contact) ? (
               <View style={styles.tag}>
                 <Text style={styles.tagText}>{contact.tag}</Text>
               </View>
@@ -76,12 +76,12 @@ export function ContactCard({ contact, onChange }: { contact: ServiceContact; on
           <Text style={styles.phone}>+91 {contact.phone}</Text>
         </View>
         <Text style={styles.change}>Change</Text>
-      </Pressable>
-      <View style={styles.note}>
-        <Ionicons name="call-outline" size={14} color="#26406F" />
-        <Text style={styles.noteText}>{contactNote(contact)}</Text>
       </View>
-    </View>
+      <View style={styles.cardNote}>
+        <Ionicons name="call-outline" size={13} color={T.muted} />
+        <Text style={styles.cardNoteText}>{contactNote(contact)}</Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -255,13 +255,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   card: {
-    padding: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E3E5E9',
+    backgroundColor: '#FFFFFF',
+  },
+  cardTop: {
+    padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  cardNote: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#ECEDF0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  cardNoteText: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: T.muted,
   },
   avatar: {
     width: 38,
@@ -278,11 +296,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     fontSize: 13.5,
     color: '#FFFFFF',
-  },
-  cardLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: T.muted,
   },
   nameRow: {
     flexDirection: 'row',
@@ -316,18 +329,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     fontSize: 13,
     color: '#1A5FD0',
-  },
-  note: {
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  noteText: {
-    flex: 1,
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: '#26406F',
   },
   list: {
     marginTop: 4,

@@ -295,15 +295,7 @@ export default function CheckoutScreen() {
             />
           </View>
           {tried && !plateOk && <Text style={styles.err}>Enter a valid vehicle number (e.g. MH02AB1234)</Text>}
-          {receiver ? (
-            <View style={styles.forRow}>
-              <Ionicons name="people-outline" size={15} color={T.ink} />
-              <Text style={styles.forText}>
-                Booking for <Text style={styles.bold}>{receiver.name}</Text> (from your saved address)
-              </Text>
-            </View>
-          ) : null}
-          <Text style={styles.label}>Contact for this service</Text>
+          <Text style={styles.label}>Contact person</Text>
           <ContactCard contact={contact} onChange={() => setSheet('contact')} />
         </Block>
 
@@ -1178,22 +1170,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     fontSize: 15,
     color: T.text,
-  },
-  forRow: {
-    marginTop: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#F7F8FA',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  forText: {
-    flex: 1,
-    fontFamily: fonts.regular,
-    fontSize: 12.5,
-    color: T.ink,
   },
   confirmCard: {
     marginTop: 14,

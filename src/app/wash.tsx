@@ -1,17 +1,17 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AddressBar } from '../components/booking/AddressBar';
+import { KindIcon } from '../components/booking/KindIcon';
 import { FadeIn } from '../components/home/motion';
 import { PlanSheet, ServiceDetailsSheet, SocietySheet, UpgradeSheet } from '../components/booking/BookingSheets';
 import { fonts, noBounce } from '../components/theme';
 import { Toast, useToast } from '../components/Toast';
 import { T } from '../components/tracking/trackTheme';
+import { VehiclePhoto } from '../components/VehiclePhoto';
 import { VehicleSheet } from '../components/VehicleSheet';
 import {
   setDraft,
@@ -104,14 +104,11 @@ export default function CarServicesScreen() {
               </Text>
               {selectedCar?.brandName ? <Text style={styles.vehicleBrand}>{selectedCar.brandName}</Text> : null}
             </View>
-            <MaterialCommunityIcons
-              name={selectedCar?.type === 'bike' ? 'motorbike' : 'car-side'}
-              size={24}
-              color={T.text}
-            />
+            <View style={styles.vehicleArt}>
+              <VehiclePhoto vehicle={selectedCar} width={58} height={34} />
+            </View>
           </Pressable>
         </View>
-        <AddressBar />
         <View style={styles.kindWrap}>
           <View style={styles.kinds}>
             {(['car', 'bike'] as const).map((k) => {
@@ -124,11 +121,7 @@ export default function CarServicesScreen() {
                   accessibilityState={{ selected: on }}
                   style={[styles.kind, on && styles.kindOn]}
                 >
-                  <MaterialCommunityIcons
-                    name={k === 'car' ? 'car' : 'moped'}
-                    size={18}
-                    color={on ? '#FFFFFF' : T.text}
-                  />
+                  <KindIcon kind={k} color={on ? '#FFFFFF' : T.text} />
                   <Text style={[styles.kindText, on && styles.kindTextOn]}>{k === 'car' ? 'Car' : 'Bike'}</Text>
                 </Pressable>
               );
@@ -522,6 +515,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  vehicleArt: {
+    width: 58,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   vehicleText: {
     alignItems: 'flex-end',

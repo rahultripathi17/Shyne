@@ -33,6 +33,9 @@ export default function AddressSelectionScreen() {
   const [locating, setLocating] = useState(false);
   const [menu, setMenu] = useState<SavedAddress | null>(null);
   const [deleting, setDeleting] = useState<SavedAddress | null>(null);
+  const isCurrent = (a: SavedAddress) => location?.address === addressLine(a) && location.label === a.tag;
+  // The selected address first, then the rest in saved order.
+  const sorted = [...addresses].sort((x, y) => Number(isCurrent(y)) - Number(isCurrent(x)));
 
   useFocusEffect(
     useCallback(() => {
@@ -152,7 +155,7 @@ export default function AddressSelectionScreen() {
               </Pressable>
             </View>
 
-            <Text style={styles.section}>Saved addresses</Text>
+            <Text style={styles.section}>Saved addresses{addresses.length ? ` (${addresses.length})` : ''}</Text>
             {addresses.length === 0 ? (
               <View style={styles.empty}>
                 <View style={styles.emptyIcon}>
@@ -163,8 +166,8 @@ export default function AddressSelectionScreen() {
               </View>
             ) : (
               <View style={styles.list}>
-                {addresses.map((a) => {
-                  const current = location?.address === addressLine(a) && location.label === a.tag;
+                {sorted.map((a) => {
+                  const current = isCurrent(a);
                   const icon = ICON[a.tag];
                   return (
                     <View key={a.id} style={[styles.card, current && styles.cardOn]}>
@@ -173,44 +176,55 @@ export default function AddressSelectionScreen() {
                           pickAddress(a.id);
                           router.back();
                         }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Use ${a.tag}, ${addressLine(a)}`}
-                        style={styles.cardMain}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: current }}
+                        accessibilityLabel={`${a.tag}, ${addressLine(a)}`}
+                        style={({ pressed }) => [styles.cardTap, pressed && styles.cardPressed]}
                       >
-                        <View style={[styles.tagIcon, { backgroundColor: icon.bg }]}>
-                          <Ionicons name={icon.name} size={17} color={icon.fg} />
-                        </View>
-                        <View style={styles.flex}>
-                          <View style={styles.tagRow}>
-                            <Text style={styles.tag}>{a.tag}</Text>
-                            {current && (
-                              <View style={styles.current}>
-                                <Ionicons name="checkmark" size={11} color="#17784A" />
-                                <Text style={styles.currentText}>Selected</Text>
-                              </View>
-                            )}
+                        {/* Header: icon, tag and status on one line, menu at the end */}
+                        <View style={styles.cardHead}>
+                          <View style={[styles.tagIcon, { backgroundColor: icon.bg }]}>
+                            <Ionicons name={icon.name} size={15} color={icon.fg} />
                           </View>
+                          <Text style={styles.tag} numberOfLines={1}>
+                            {a.tag}
+                          </Text>
+                          {current && (
+                            <View style={styles.current}>
+                              <Ionicons name="checkmark-circle" size={12} color={T.text} />
+                              <Text style={styles.currentText}>Selected</Text>
+                            </View>
+                          )}
+                        </View>
+
+                        {/* Body, aligned under the tag */}
+                        <View style={styles.cardBody}>
                           <Text style={styles.addr} numberOfLines={2}>
                             {addressLine(a)}
                           </Text>
-                          {a.contact && (
-                            <View style={styles.forChip}>
-                              <Ionicons name="person-outline" size={11} color={T.ink} />
-                              <Text style={styles.forText} numberOfLines={1}>
-                                For {a.contact.name} · +91 {a.contact.phone}
+                          {a.landmark ? (
+                            <Text style={styles.landmark} numberOfLines={1}>
+                              Near {a.landmark}
+                            </Text>
+                          ) : null}
+                          {a.contact ? (
+                            <View style={styles.contactRow}>
+                              <Ionicons name="person-outline" size={13} color={T.muted} />
+                              <Text style={styles.contactText} numberOfLines={1}>
+                                For <Text style={styles.contactName}>{a.contact.name}</Text>
                               </Text>
                             </View>
-                          )}
+                          ) : null}
                         </View>
                       </Pressable>
                       <Pressable
                         onPress={() => setMenu(a)}
-                        hitSlop={10}
+                        hitSlop={8}
                         accessibilityRole="button"
                         accessibilityLabel={`More options for ${a.tag}`}
-                        style={styles.more}
+                        style={({ pressed }) => [styles.more, pressed && styles.morePressed]}
                       >
-                        <Ionicons name="ellipsis-vertical" size={17} color={T.muted} />
+                        <Ionicons name="ellipsis-horizontal" size={18} color={T.ink} />
                       </Pressable>
                     </View>
                   );
@@ -403,48 +417,50 @@ const styles = StyleSheet.create({
   },
   list: {
     marginHorizontal: 16,
-    gap: 10,
-  },
-  card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  cardOn: {
-    borderColor: '#BFE3CC',
-  },
-  cardMain: {
-    flex: 1,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
     gap: 12,
   },
+  card: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#ECEDF0',
+    backgroundColor: '#FFFFFF',
+  },
+  cardOn: {
+    borderColor: T.text,
+  },
+  cardTap: {
+    paddingLeft: 16,
+    paddingRight: 52,
+    paddingTop: 14,
+    paddingBottom: 16,
+  },
+  cardPressed: {
+    opacity: 0.85,
+  },
+  cardHead: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   tagIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   tag: {
+    flexShrink: 1,
     fontFamily: fonts.semiBold,
     fontSize: 15,
     color: T.text,
   },
   current: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: '#E5F5EC',
+    borderRadius: 10,
+    backgroundColor: '#F2F3F5',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
@@ -452,36 +468,52 @@ const styles = StyleSheet.create({
   currentText: {
     fontFamily: fonts.semiBold,
     fontSize: 10.5,
-    color: '#17784A',
+    color: T.text,
+  },
+  more: {
+    position: 'absolute',
+    top: 14,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  morePressed: {
+    backgroundColor: '#F2F3F5',
+  },
+  cardBody: {
+    marginTop: 8,
+    paddingLeft: 42,
   },
   addr: {
-    marginTop: 3,
     fontFamily: fonts.regular,
     fontSize: 12.5,
     lineHeight: 18,
     color: '#5F636B',
   },
-  forChip: {
+  landmark: {
+    marginTop: 2,
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: T.muted,
+  },
+  contactRow: {
     marginTop: 8,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: '#F4F5F7',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
   },
-  forText: {
-    fontFamily: fonts.medium,
-    fontSize: 11.5,
-    color: T.ink,
+  contactText: {
+    flexShrink: 1,
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: T.muted,
   },
-  more: {
-    width: 40,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
+  contactName: {
+    fontFamily: fonts.medium,
+    color: T.text,
   },
   empty: {
     marginHorizontal: 16,
