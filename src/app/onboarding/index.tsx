@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '../../components/Buttons';
 import { BANNERS } from '../../components/home/HeroBanner';
+import { HooraLogo } from '../../components/HooraLogo';
 import { ink } from '../../components/home/homeTheme';
 import { fonts, useAnimatedValue } from '../../components/theme';
 import { useAppStore } from '../../store/AppStore';
@@ -139,6 +140,9 @@ export default function WelcomeScreen() {
         onPress={Keyboard.dismiss}
         accessible={false}
       >
+        <View style={styles.brand}>
+          <HooraLogo width={104} />
+        </View>
         <Text style={styles.heading}>Log in</Text>
         <Text style={styles.subheading}>Enter your mobile number to continue</Text>
 
@@ -235,6 +239,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
     backgroundColor: '#FFFFFF',
+  },
+  brand: {
+    marginBottom: 14,
   },
   heading: {
     fontFamily: fonts.extraBold,

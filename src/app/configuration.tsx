@@ -1,16 +1,28 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import type { ComponentProps, ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { type ComponentProps, type ReactNode, useEffect, useState } from 'react';
+import { Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DockCard, restoreDismissed, useDismissedCount } from '../components/BookingDock';
+import { HooraMark } from '../components/HooraLogo';
 import { ink } from '../components/home/homeTheme';
 import { fonts, noBounce } from '../components/theme';
 import { Toast, useToast } from '../components/Toast';
 import { TopBar } from '../components/TopBar';
 import { DOCK_STATES } from '../data/bookingDock';
+import { BOOKING_DAY, type NotifGroup, type NotifKey, NOTIFICATIONS } from '../data/notifications';
+import { TRACK_STAGES } from '../data/serviceTracking';
+import {
+  getPermission,
+  isOn,
+  notifContent,
+  type Permission,
+  requestPermission,
+  sendNotification,
+  sendSequence,
+} from '../lib/notifications';
 import { useAppStore } from '../store/AppStore';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -19,12 +31,17 @@ const TRACK = { false: '#D9DBE1', true: ink.text };
 
 /**
  * Configuration — preview-build switches (Profile → Edit profile → Configuration): the Hoora Black
- * member preview and the booking dock above the nav, with every dock card shown in order and
- * switchable one by one.
+ * member preview, the booking dock above the nav (every card in order, switchable one by one) and
+ * every notification Hoora sends (switchable, with a preview and a "send now").
  */
 export default function ConfigurationScreen() {
   const insets = useSafeAreaInsets();
-  const { blackMember, setProfile, dockPreview, setDockPreview } = useAppStore();
+  const { blackMember, setProfile, dockPreview, setDockPreview, notifPrefs, setNotifPrefs } = useAppStore();
+  const [permission, setPermission] = useState<Permission>('undetermined');
+
+  useEffect(() => {
+    void getPermission().then(setPermission);
+  }, []);
   const toast = useToast();
   const closed = useDismissedCount();
 
@@ -39,6 +56,38 @@ export default function ConfigurationScreen() {
     else next.add(key);
     setDockPreview({ hidden: [...next] });
   };
+
+  const notifOn = !notifPrefs?.off;
+  const notifHidden = new Set(notifPrefs?.hidden ?? []);
+  const toggleNotif = (key: NotifKey, on: boolean) => {
+    void Haptics.selectionAsync();
+    const next = new Set(notifHidden);
+    if (on) next.delete(key);
+    else next.add(key);
+    setNotifPrefs({ hidden: [...next] });
+  };
+  const allow = async () => {
+    if (permission === 'denied') {
+      void Linking.openSettings();
+      return;
+    }
+    setPermission(await requestPermission());
+  };
+  const sendOne = async (key: NotifKey) => {
+    if (permission === 'unsupported') return toast.show('Open the app on your phone to get notifications');
+    const sent = await sendNotification(key, {}, { prefs: notifPrefs });
+    setPermission(await getPermission());
+    toast.show(sent ? 'Sent. Check your notifications' : 'Allow notifications to preview them');
+  };
+  const playDay = async () => {
+    if (permission === 'unsupported') return toast.show('Open the app on your phone to get notifications');
+    const count = await sendSequence(BOOKING_DAY, notifPrefs, 4);
+    setPermission(await getPermission());
+    toast.show(
+      count ? `${count} notifications, 4 seconds apart. Lock your phone to watch` : 'Allow notifications first',
+    );
+  };
+  const groups: NotifGroup[] = ['Booking', 'Payment', 'Rewards', 'Packs'];
 
   return (
     <View style={styles.screen}>
@@ -55,6 +104,33 @@ export default function ConfigurationScreen() {
             value={!!blackMember}
             onChange={(v) => setProfile({ blackMember: v })}
           />
+        </View>
+
+        <Text style={styles.section}>Booking tracking</Text>
+        <View style={styles.card}>
+          {[
+            { key: 'success', label: 'Booking success screen', go: () => router.push('/booking/confirmed?id=w2') },
+            ...TRACK_STAGES.map((s) => ({
+              key: s.key,
+              label: s.label,
+              go: () => router.push({ pathname: '/booking/[id]', params: { id: 'w2', stage: s.key } }),
+            })),
+          ].map((s, i) => (
+            <View key={s.key}>
+              {i > 0 && <View style={styles.rule} />}
+              <Pressable
+                onPress={s.go}
+                style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+                accessibilityRole="link"
+              >
+                <View style={styles.step}>
+                  <Text style={styles.stepText}>{i + 1}</Text>
+                </View>
+                <Text style={styles.rowTitle}>{s.label}</Text>
+                <Ionicons name="chevron-forward" size={18} color={ink.muted} />
+              </Pressable>
+            </View>
+          ))}
         </View>
 
         <Text style={styles.section}>Booking dock</Text>
@@ -121,8 +197,105 @@ export default function ConfigurationScreen() {
           })}
         </View>
         {!dockOn && <Text style={styles.note}>Turn on “Show booking dock” to choose cards.</Text>}
+
+        <Text style={styles.section}>Notifications</Text>
+        <View style={styles.card}>
+          <SwitchRow
+            icon="notifications-outline"
+            title="Send notifications"
+            sub="Booking updates, payments, rewards and packs"
+            value={notifOn}
+            onChange={(v) => setNotifPrefs({ off: !v })}
+          />
+          <View style={styles.rule} />
+          <View style={styles.row}>
+            <Ionicons name="phone-portrait-outline" size={20} color={ink.text} />
+            <Text style={styles.rowTitle}>On this phone</Text>
+            {permission === 'granted' ? (
+              <Text style={styles.allowed}>Allowed</Text>
+            ) : permission === 'unsupported' ? (
+              <Text style={styles.count}>Phone only</Text>
+            ) : (
+              <Pressable onPress={() => void allow()} accessibilityRole="button" style={styles.smallBtn}>
+                <Text style={styles.smallBtnText}>{permission === 'denied' ? 'Open settings' : 'Allow'}</Text>
+              </Pressable>
+            )}
+          </View>
+          <View style={styles.rule} />
+          <Pressable
+            onPress={() => void playDay()}
+            disabled={!notifOn}
+            style={({ pressed }) => [styles.row, pressed && styles.rowPressed, !notifOn && styles.dim]}
+            accessibilityRole="button"
+          >
+            <Ionicons name="play-circle-outline" size={20} color={ink.text} />
+            <Text style={styles.rowTitle}>Play a booking day</Text>
+            <Text style={styles.count}>{BOOKING_DAY.length} in order</Text>
+          </Pressable>
+        </View>
+
+        {groups.map((group) => (
+          <View key={group}>
+            <Text style={styles.section}>{group}</Text>
+            <View style={[styles.states, !notifOn && styles.dim]} pointerEvents={notifOn ? 'auto' : 'none'}>
+              {NOTIFICATIONS.filter((n) => n.group === group).map((n, i) => {
+                const on = isOn(n.key, { hidden: [...notifHidden] });
+                return (
+                  <View key={n.key} style={[styles.stateCard, i > 0 && styles.stateGap]}>
+                    <View style={styles.stateHead}>
+                      <Text style={styles.stateLabel} numberOfLines={1}>
+                        {n.trigger}
+                      </Text>
+                      <Pressable
+                        onPress={() => void sendOne(n.key)}
+                        disabled={!on}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Send: ${n.trigger}`}
+                        style={[styles.sendBtn, !on && styles.off]}
+                      >
+                        <Ionicons name="paper-plane-outline" size={13} color={ink.text} />
+                        <Text style={styles.sendText}>Send</Text>
+                      </Pressable>
+                      <Switch
+                        value={on}
+                        onValueChange={(v) => toggleNotif(n.key, v)}
+                        trackColor={TRACK}
+                        thumbColor="#FFFFFF"
+                        accessibilityLabel={`${n.trigger} notification`}
+                      />
+                    </View>
+                    <View style={!on && styles.off} pointerEvents="none">
+                      <NotifPreview notifKey={n.key} />
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        ))}
       </ScrollView>
       <Toast toast={toast} bottom={insets.bottom + 24} />
+    </View>
+  );
+}
+
+/** How the notification looks on the lock screen (iOS style), with the real copy. */
+function NotifPreview({ notifKey }: { notifKey: NotifKey }) {
+  const { title, body, timeSensitive } = notifContent(notifKey);
+  return (
+    <View style={styles.notif}>
+      <View style={styles.notifIcon}>
+        <HooraMark size={24} />
+      </View>
+      <View style={styles.notifCopy}>
+        <View style={styles.notifTop}>
+          <Text style={styles.notifApp}>{timeSensitive ? 'TIME SENSITIVE' : 'HOORA'}</Text>
+          <Text style={styles.notifTime}>now</Text>
+        </View>
+        <Text style={styles.notifTitle}>{title}</Text>
+        <Text style={styles.notifBody}>{body}</Text>
+      </View>
     </View>
   );
 }
@@ -297,6 +470,82 @@ const styles = StyleSheet.create({
   },
   off: {
     opacity: 0.35,
+  },
+  allowed: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    color: '#0E9F5A',
+  },
+  smallBtn: {
+    height: 32,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    justifyContent: 'center',
+    backgroundColor: ink.text,
+  },
+  smallBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  sendBtn: {
+    height: 30,
+    paddingHorizontal: 11,
+    borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#F2F3F5',
+  },
+  sendText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: ink.text,
+  },
+  notif: {
+    flexDirection: 'row',
+    gap: 11,
+    padding: 12,
+    borderRadius: 18,
+    backgroundColor: '#1E1E21',
+  },
+  notifIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0B0B0F',
+  },
+  notifCopy: {
+    flex: 1,
+    gap: 1,
+  },
+  notifTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  notifApp: {
+    fontFamily: fonts.semiBold,
+    fontSize: 11,
+    letterSpacing: 0.4,
+    color: 'rgba(255,255,255,0.55)',
+  },
+  notifTime: {
+    fontFamily: fonts.medium,
+    fontSize: 11.5,
+    color: 'rgba(255,255,255,0.55)',
+  },
+  notifTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
+  notifBody: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(255,255,255,0.85)',
   },
   note: {
     marginTop: 10,

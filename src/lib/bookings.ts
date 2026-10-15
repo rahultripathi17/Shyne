@@ -35,7 +35,7 @@ function fromStore(b: Booking): BookingItem {
     status: b.status === 'Confirmed' ? 'Placed' : b.status,
     tone: b.status === 'Confirmed' ? 'pending' : b.status === 'Completed' ? 'done' : 'closed',
     eyebrow: 'One-time wash',
-    title: service?.name ?? 'Car wash',
+    title: b.title ?? service?.name ?? 'Car wash',
     meta: [car, b.car.plate].filter(Boolean).join(' · '),
     when: { icon: 'calendar', title: `${fmtDate(b.date)} · ${b.slot}`, sub: b.address },
     placed: `Booked ${new Date(b.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}`,

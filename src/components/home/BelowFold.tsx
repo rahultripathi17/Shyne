@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { HooraLogo } from '../HooraLogo';
 import { formatPlate } from '../PlateField';
 import { fonts } from '../theme';
 import { ART, FittedArt } from './artwork';
@@ -63,6 +64,9 @@ const STATS = [
 export function BrandFooter() {
   return (
     <View style={styles.footer}>
+      <View style={styles.footerLogo}>
+        <HooraLogo width={112} />
+      </View>
       <Text style={styles.footerTitle}>{'India’s #1\nCar & Bike Care App'}</Text>
       <View style={styles.stats}>
         {STATS.map((s, i) => (
@@ -145,6 +149,9 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     paddingTop: 22,
+  },
+  footerLogo: {
+    marginBottom: 14,
   },
   footerTitle: {
     fontFamily: fonts.extraBold,

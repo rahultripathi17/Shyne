@@ -1,985 +1,788 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { type ComponentProps, useState } from 'react';
-import { Image, Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native';
-
-import { ink } from '../../components/home/homeTheme';
-import { PressableScale } from '../../components/home/motion';
-import { useTabBarSpace } from '../../components/tabBarSpace';
-import { TabScroll } from '../../components/TabScroll';
-import { fonts } from '../../components/theme';
-import { Toast, useToast } from '../../components/Toast';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { setStatusBarStyle } from 'expo-status-bar';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import {
-  FRIEND_DISCOUNT,
-  MONTHLY_PRIZES,
-  MY_REWARDS,
-  REDEEM,
-  REFERRAL_CODE,
-  SAMPLE_LEADERBOARD,
-  tierProgress,
+  Animated,
+  Image,
+  Linking,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { RedeemSheet } from '../../components/rewards/RedeemSheet';
+import { RewardCard } from '../../components/rewards/RewardCard';
+import { Coin, fmt, ProgressBar, R, Segmented, TierBadge } from '../../components/rewards/RewardsKit';
+import { useTabBarSpace } from '../../components/tabBarSpace';
+import { fonts, noBounce, useAnimatedValue } from '../../components/theme';
+import {
+  BOOKED,
+  CATALOG,
+  type CatalogItem,
+  HERO_SLIDES,
+  INVITE_TEXT,
+  ME,
+  MY_TIER,
+  PENDING,
+  REFER_CODE,
   TIERS,
-  WAYS_TO_EARN,
-} from '../../data/rewards';
-import { useAppStore } from '../../store/AppStore';
+} from '../../data/referEarn';
+import { useRewardsState } from '../../data/referEarnStore';
 
-type IconName = ComponentProps<typeof Ionicons>['name'];
-type Section = 'redeem' | 'milestones' | 'leaderboard';
+// Refer & Earn (Rewards tab), mapped from the Figma (Dev File, section 11461:5761) and laid out
+// like Home: a full-bleed black hero, then a light sheet.
+//   Hero   title + Hoora Points (wallet & history) · "Refer a friend & get FREE …" · how it works
+//   Sheet  invite (code, share, my referrals) → your league (progress, leaderboard) → redeem points
+// Every fact appears once; the leaderboard, leagues, store and wallet each open their own screen.
 
-const SECTIONS: { key: Section; label: string }[] = [
-  { key: 'redeem', label: 'Redeem' },
-  { key: 'milestones', label: 'Milestones' },
-  { key: 'leaderboard', label: 'Leaderboard' },
+const IMG = {
+  stepShare: require('../../../assets/rewards/hub/how-refer.png'),
+  stepBook: require('../../../assets/rewards/hub/how-book.png'),
+  stepEarn: require('../../../assets/rewards/hub/how-earn.png'),
+};
+
+type Shelf = 'product' | 'voucher';
+const SHELVES: { key: Shelf; label: string }[] = [
+  { key: 'product', label: 'Products' },
+  { key: 'voucher', label: 'Vouchers' },
 ];
 
-const fmt = (n: number) => n.toLocaleString('en-IN');
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-const inviteText = `Get your car or bike washed at your doorstep with Hoora! Use my code ${REFERRAL_CODE} for ₹${FRIEND_DISCOUNT} off your first service.`;
+const SHEET_OVERLAP = 26;
+const SLIDE_MS = 2600;
 
 export default function RewardsScreen() {
-  const { name, email, gender, dob, photoUri } = useAppStore();
-  const [section, setSection] = useState<Section>('redeem');
-  const [kind, setKind] = useState<'product' | 'voucher'>('product');
-  const [copied, setCopied] = useState(false);
-  const toast = useToast();
+  const insets = useSafeAreaInsets();
   const bottomSpace = useTabBarSpace();
-  const { points, referrals, monthPoints } = MY_REWARDS;
-  const tier = tierProgress(referrals);
-  const perReferral = (tier.current ?? TIERS[0]).pointsPerReferral;
-  const profileDone = !!(name && email && gender && dob && photoUri);
+  const { width } = useWindowDimensions();
+  const { balance } = useRewardsState();
+  const params = useLocalSearchParams<{ focus?: string }>();
+  const scroll = useRef<ScrollView>(null);
+  const heroH = useRef(0);
+  const redeemY = useRef(0);
+  const darkBar = useRef(false);
+  const cover = useAnimatedValue(0);
+  const [shelf, setShelf] = useState<Shelf>('product');
+  const [selected, setSelected] = useState<CatalogItem | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  const copy = async () => {
-    await Clipboard.setStringAsync(REFERRAL_CODE);
+  const { tier, left, goal, index } = MY_TIER;
+
+  // Light status bar over the black hero; dark once the sheet scrolls under it.
+  useFocusEffect(
+    useCallback(() => {
+      setStatusBarStyle(darkBar.current ? 'dark' : 'light');
+      return () => setStatusBarStyle('dark');
+    }, []),
+  );
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const past = e.nativeEvent.contentOffset.y > heroH.current - insets.top - SHEET_OVERLAP;
+    if (past !== darkBar.current) {
+      darkBar.current = past;
+      setStatusBarStyle(past ? 'dark' : 'light');
+      Animated.timing(cover, { toValue: past ? 1 : 0, duration: 160, useNativeDriver: true }).start();
+    }
+  };
+
+  // "Redeem points" in the wallet lands here, on the shelf.
+  useEffect(() => {
+    if (params.focus !== 'redeem') return;
+    const t = setTimeout(
+      () => scroll.current?.scrollTo({ y: heroH.current - SHEET_OVERLAP + redeemY.current - 12, animated: true }),
+      250,
+    );
+    router.setParams({ focus: undefined });
+    return () => clearTimeout(t);
+  }, [params.focus]);
+
+  const copyCode = async () => {
+    await Clipboard.setStringAsync(REFER_CODE);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
+    setTimeout(() => setCopied(false), 1800);
+  };
+  const share = () => Share.share({ message: INVITE_TEXT });
+  const whatsapp = async () => {
+    void Haptics.selectionAsync();
+    const url = `whatsapp://send?text=${encodeURIComponent(INVITE_TEXT)}`;
+    if (await Linking.canOpenURL(url).catch(() => false)) await Linking.openURL(url);
+    else await share();
   };
 
-  const whatsapp = async () => {
-    const url = `whatsapp://send?text=${encodeURIComponent(inviteText)}`;
-    if (await Linking.canOpenURL(url).catch(() => false)) await Linking.openURL(url);
-    else await Share.share({ message: inviteText });
-  };
+  // What you can redeem now comes first, then the closest ones.
+  const items = CATALOG.filter((c) => c.kind === shelf).sort(
+    (a, b) => Number(b.cost <= balance) - Number(a.cost <= balance) || a.cost - b.cost,
+  );
+  const cardW = (Math.min(width, 620) - 32 - 12) / 2;
 
   return (
-    <View style={{ flex: 1 }}>
-      <TabScroll title="Rewards" subtitle="Earn Hoora Points, unlock free services">
-        {/* Points wallet */}
-        <View style={styles.wallet}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.walletLabel}>Your Hoora Points</Text>
-            <View style={styles.walletRow}>
-              <Image source={require('../../../assets/profile/coins.png')} style={styles.walletCoin} />
-              <Text style={styles.walletValue}>{fmt(points)}</Text>
-            </View>
-            <Text style={styles.walletSub}>Use them on products, vouchers and free washes</Text>
-          </View>
-          <Image source={require('../../../assets/refer/gift.png')} style={styles.walletGift} />
-          <View style={styles.walletActions}>
-            <Pressable onPress={() => setSection('redeem')} style={styles.walletPrimary} accessibilityRole="button">
-              <Text style={styles.walletPrimaryText}>Redeem</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => toast.show(points ? 'Points history — coming soon' : 'No points activity yet')}
-              style={styles.walletGhost}
-              accessibilityRole="button"
-            >
-              <Ionicons name="time-outline" size={15} color={ink.text} />
-              <Text style={styles.walletGhostText}>History</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Refer & earn — the main way to earn */}
-        <View style={styles.refer}>
-          <View style={styles.referTop}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.referTitle}>Refer & earn</Text>
-              <Text style={styles.referBody}>
-                Friends get <Text style={styles.bold}>₹{FRIEND_DISCOUNT} off</Text>. You get{' '}
-                <Text style={styles.bold}>{perReferral} points</Text> after their first service.
-              </Text>
-            </View>
-          </View>
-          <View style={styles.codeRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.codeLabel}>Your code</Text>
-              <Text style={styles.code}>{REFERRAL_CODE}</Text>
-            </View>
-            <Pressable onPress={copy} style={styles.copy} accessibilityRole="button" accessibilityLabel="Copy code">
-              <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={16} color={ink.text} />
-              <Text style={styles.copyText}>{copied ? 'Copied' : 'Copy'}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.shareRow}>
-            <Pressable
-              onPress={whatsapp}
-              style={({ pressed }) => [styles.whatsapp, pressed && { opacity: 0.88 }]}
-              accessibilityRole="button"
-            >
-              <Ionicons name="logo-whatsapp" size={19} color="#FFFFFF" />
-              <Text style={styles.whatsappText}>Invite on WhatsApp</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => Share.share({ message: inviteText })}
-              style={({ pressed }) => [styles.more, pressed && { opacity: 0.7 }]}
-              accessibilityRole="button"
-              accessibilityLabel="More ways to share"
-            >
-              <Ionicons name="share-social-outline" size={20} color={ink.text} />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Tier */}
-        <PressableScale
-          onPress={() => setSection('milestones')}
-          scaleTo={0.98}
-          style={styles.tier}
-          accessibilityLabel="See milestones"
+    <View style={styles.screen}>
+      <ScrollView
+        ref={scroll}
+        {...noBounce}
+        showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={32}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* ——— Hero ——— */}
+        <View
+          style={[styles.hero, { paddingTop: insets.top + 4 }]}
+          onLayout={(e) => {
+            heroH.current = e.nativeEvent.layout.height;
+          }}
         >
-          <Image
-            source={(tier.current ?? TIERS[0]).badge}
-            resizeMode="contain"
-            style={[styles.tierBadge, !tier.current && { opacity: 0.45 }]}
-          />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.tierName}>{tier.current ? `${tier.current.name} member` : 'Start your journey'}</Text>
-            <View style={styles.bar}>
-              <View style={[styles.barFill, { width: `${Math.max(4, tier.progress * 100)}%` }]} />
-            </View>
-            <Text style={styles.tierNext}>
-              {tier.next
-                ? `${tier.toNext} more referral${tier.toNext === 1 ? '' : 's'} to ${tier.next.name}`
-                : 'You’re at the top tier'}
+          <View style={styles.header}>
+            <Text style={styles.title}>Refer & Earn</Text>
+            <Pressable
+              onPress={() => router.push('/refer/points')}
+              accessibilityRole="button"
+              accessibilityLabel={`${balance} Hoora Points. Open wallet and history`}
+              style={({ pressed }) => [styles.pointsPill, pressed && styles.pressed]}
+            >
+              <Coin size={18} />
+              <Text style={styles.pointsText}>{fmt(balance)}</Text>
+              <Ionicons name="chevron-forward" size={14} color={R.onNightMuted} />
+            </Pressable>
+          </View>
+
+          <HeroSlides />
+
+          <View style={styles.how}>
+            <HowStep image={IMG.stepShare} text="Share your code" />
+            <Ionicons name="chevron-forward" size={13} color="rgba(255,255,255,0.35)" style={styles.howArrow} />
+            <HowStep image={IMG.stepBook} text="Friend books a service" />
+            <Ionicons name="chevron-forward" size={13} color="rgba(255,255,255,0.35)" style={styles.howArrow} />
+            <HowStep image={IMG.stepEarn} text={`You earn ${tier.pointsPerReferral} points`} />
+          </View>
+        </View>
+
+        {/* ——— Sheet ——— */}
+        <View style={[styles.sheet, { paddingBottom: bottomSpace + 24 }]}>
+          {/* Invite */}
+          <View style={styles.card}>
+            <Text style={styles.inviteTitle}>
+              Invite friends and earn <Text style={styles.strong}>{tier.pointsPerReferral} Hoora Points</Text> each
             </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={ink.muted} />
-        </PressableScale>
-
-        {/* Ways to earn */}
-        <Text style={styles.section}>Ways to earn</Text>
-        <View style={styles.earnGrid}>
-          {WAYS_TO_EARN.map((w) => {
-            const done = w.key === 'profile' && profileDone;
-            return (
-              <View key={w.key} style={styles.earn}>
-                <View style={styles.earnIcon}>
-                  <Ionicons name={w.icon as IconName} size={18} color={ink.text} />
-                </View>
-                <Text style={styles.earnTitle} numberOfLines={2}>
-                  {w.title}
-                </Text>
-                <Text style={[styles.earnPoints, done && { color: '#1E8E4E' }]}>
-                  {done ? 'Done' : `+${w.points} pts`}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Sections */}
-        <View style={styles.segment}>
-          {SECTIONS.map((s) => {
-            const on = section === s.key;
-            return (
+            <View style={styles.codeRow}>
+              <Text style={styles.code} selectable>
+                {REFER_CODE}
+              </Text>
               <Pressable
-                key={s.key}
-                onPress={() => {
-                  void Haptics.selectionAsync();
-                  setSection(s.key);
-                }}
-                style={[styles.segmentItem, on && styles.segmentOn]}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: on }}
+                onPress={copyCode}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Copy referral code"
+                style={({ pressed }) => [styles.copy, pressed && styles.pressed]}
               >
-                <Text style={[styles.segmentText, on && styles.segmentTextOn]}>{s.label}</Text>
+                <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={15} color={R.text} />
+                <Text style={styles.copyText}>{copied ? 'Copied' : 'Copy'}</Text>
               </Pressable>
-            );
-          })}
-        </View>
-
-        {section === 'redeem' && (
-          <>
-            <View style={styles.chips}>
-              {(['product', 'voucher'] as const).map((k) => (
-                <Pressable
-                  key={k}
-                  onPress={() => setKind(k)}
-                  style={[styles.chip, kind === k && styles.chipOn]}
-                  accessibilityRole="tab"
-                >
-                  <Text style={[styles.chipText, kind === k && styles.chipTextOn]}>
-                    {k === 'product' ? 'Products' : 'Vouchers'}
-                  </Text>
-                </Pressable>
-              ))}
             </View>
-            <View style={styles.grid}>
-              {REDEEM.filter((r) => r.kind === kind).map((r) => {
-                const short = r.points - points;
-                return (
-                  <View key={r.id} style={styles.item}>
-                    <View style={styles.itemArt}>
-                      {r.image ? (
-                        <Image source={r.image} resizeMode="contain" style={styles.itemImg} />
-                      ) : (
-                        <View style={styles.voucherIcon}>
-                          <Ionicons name={r.icon as IconName} size={26} color={ink.text} />
-                        </View>
-                      )}
-                    </View>
-                    <Text style={styles.itemName} numberOfLines={1}>
-                      {r.name}
-                    </Text>
-                    <Text style={styles.itemDetail}>{r.detail}</Text>
-                    <View style={styles.itemPoints}>
-                      <Image source={require('../../../assets/profile/coins.png')} style={styles.itemCoin} />
-                      <Text style={styles.itemPointsText}>{fmt(r.points)}</Text>
-                    </View>
-                    <View style={[styles.itemBtn, short > 0 && styles.itemBtnOff]}>
-                      <Text style={[styles.itemBtnText, short > 0 && styles.itemBtnTextOff]}>
-                        {short > 0 ? `${fmt(short)} more needed` : 'Redeem'}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
+            <View style={styles.shareRow}>
+              <Pressable
+                onPress={whatsapp}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.whatsapp, pressed && styles.pressed]}
+              >
+                <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
+                <Text style={styles.whatsappText}>WhatsApp</Text>
+              </Pressable>
+              <Pressable
+                onPress={share}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.other, pressed && styles.pressed]}
+              >
+                <Ionicons name="share-social-outline" size={17} color={R.text} />
+                <Text style={styles.otherText}>Other</Text>
+              </Pressable>
             </View>
-          </>
-        )}
-
-        {section === 'milestones' && (
-          <View style={styles.journey}>
-            {TIERS.map((t, i) => {
-              const reached = referrals >= t.from;
-              const current = tier.current?.key === t.key;
-              const last = i === TIERS.length - 1;
-              return (
-                <View key={t.key} style={styles.step}>
-                  <View style={styles.rail}>
-                    <View style={[styles.dot, reached && styles.dotOn]}>
-                      <Ionicons
-                        name={reached ? 'checkmark' : 'lock-closed'}
-                        size={12}
-                        color={reached ? ink.text : ink.faint}
-                      />
-                    </View>
-                    {!last && <View style={[styles.line, reached && styles.lineOn]} />}
-                  </View>
-                  <View style={[styles.stepCard, current && styles.stepCardOn, !reached && styles.stepCardLocked]}>
-                    <Image
-                      source={t.badge}
-                      resizeMode="contain"
-                      style={[styles.stepBadge, !reached && { opacity: 0.4 }]}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.stepTitleRow}>
-                        <Text style={[styles.stepName, { color: reached ? t.color : ink.muted }]}>{t.name}</Text>
-                        <Text style={styles.stepRange}>{t.to ? `${t.from}–${t.to}` : `${t.from}+`} referrals</Text>
-                      </View>
-                      <Text style={[styles.stepReward, !reached && { color: ink.muted }]}>{t.reward}</Text>
-                      <Text style={styles.stepRate}>{t.pointsPerReferral} points per referral</Text>
-                    </View>
-                    {current && (
-                      <View style={styles.claim}>
-                        <Text style={styles.claimText}>Claim</Text>
-                      </View>
-                    )}
-                  </View>
+            <Pressable
+              onPress={() => router.push('/refer/referrals')}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.cardRow, pressed && styles.pressed]}
+            >
+              <Text style={styles.cardRowTitle}>My referrals</Text>
+              <View style={styles.chips}>
+                <View style={styles.chip}>
+                  <View style={[styles.dot, { backgroundColor: R.green }]} />
+                  <Text style={styles.chipText}>{BOOKED.length} booked</Text>
                 </View>
-              );
-            })}
+                <View style={styles.chip}>
+                  <View style={[styles.dot, { backgroundColor: R.gold }]} />
+                  <Text style={styles.chipText}>{PENDING.length} pending</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={R.faint} />
+            </Pressable>
           </View>
-        )}
 
-        {section === 'leaderboard' && (
-          <>
-            <View style={styles.board}>
-              <Text style={styles.boardTitle}>This month’s top referrers win</Text>
-              <View style={styles.podium}>
-                {[1, 0, 2].map((idx) => {
-                  const p = SAMPLE_LEADERBOARD[idx];
-                  const prize = MONTHLY_PRIZES[idx];
-                  const first = idx === 0;
-                  return (
-                    <View key={p.name} style={[styles.podiumCol, first && styles.podiumFirst]}>
-                      <Image
-                        source={prize.image}
-                        resizeMode="contain"
-                        style={[styles.prizeImg, first && styles.prizeImgFirst]}
-                      />
-                      <Text style={styles.prizeName} numberOfLines={1}>
-                        {prize.name}
-                      </Text>
-                      <View style={[styles.avatar, first && styles.avatarFirst]}>
-                        {first && <Ionicons name="trophy" size={14} color={ink.yellowDeep} style={styles.crown} />}
-                        <Text style={styles.avatarText}>{initials(p.name)}</Text>
+          {/* Your league */}
+          <View>
+            <Text style={styles.sectionTitle}>Your league</Text>
+            <View style={styles.card}>
+              <Pressable
+                onPress={() => router.push('/refer/leagues')}
+                accessibilityRole="button"
+                accessibilityLabel={`${tier.name} league. ${left} more referrals to your next reward`}
+                style={({ pressed }) => [pressed && styles.pressed]}
+              >
+                <View style={styles.ladder}>
+                  {TIERS.map((t, i) => (
+                    <Fragment key={t.id}>
+                      {i > 0 && <View style={[styles.rung, i <= index && styles.rungOn]} />}
+                      <View style={styles.rungItem}>
+                        <View style={[styles.rungBadge, i > index && styles.rungFuture]}>
+                          <TierBadge tier={t} height={i === index ? 40 : 26} />
+                        </View>
+                        <Text style={[styles.rungName, i === index && styles.rungNameOn]}>{t.name}</Text>
                       </View>
-                      <Text style={styles.podiumName}>{p.name}</Text>
-                      <Text style={styles.podiumPoints}>{fmt(p.points)} pts</Text>
-                      <View style={[styles.rankBlock, { height: first ? 34 : 22 }]}>
-                        <Text style={styles.rankText}>{idx + 1}</Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-              <Text style={styles.boardNote}>Resets on the last day of every month</Text>
-            </View>
-
-            <View style={styles.list}>
-              {SAMPLE_LEADERBOARD.slice(3).map((p, i) => (
-                <View key={p.name} style={styles.listRow}>
-                  <Text style={styles.listRank}>{i + 4}</Text>
-                  <View style={styles.listAvatar}>
-                    <Text style={styles.listAvatarText}>{initials(p.name)}</Text>
+                    </Fragment>
+                  ))}
+                </View>
+                <Text style={styles.leagueHeadline}>
+                  {left > 0 ? `${left} more to a free ${tier.reward.replace('FREE ', '')}` : `${tier.reward} unlocked`}
+                </Text>
+                <View style={styles.bar}>
+                  <View style={styles.flex}>
+                    <ProgressBar value={ME.successful / goal} height={8} track="#EEEDE8" />
                   </View>
-                  <Text style={styles.listName}>{p.name}</Text>
-                  <Text style={styles.listPoints}>{fmt(p.points)} pts</Text>
+                  <Text style={styles.barCount}>
+                    {ME.successful}/{goal}
+                  </Text>
                 </View>
-              ))}
-              <View style={[styles.listRow, styles.listYou]}>
-                <Text style={styles.listRank}>–</Text>
-                <View style={[styles.listAvatar, { backgroundColor: ink.text }]}>
-                  <Text style={[styles.listAvatarText, { color: ink.yellow }]}>{name ? initials(name) : 'Y'}</Text>
-                </View>
-                <Text style={styles.listName}>You</Text>
-                <Text style={styles.listPoints}>{fmt(monthPoints)} pts</Text>
+              </Pressable>
+              <View style={styles.buttons}>
+                <Pressable
+                  onPress={() => router.push('/refer/leagues')}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
+                >
+                  <Ionicons name="ribbon-outline" size={16} color={R.text} />
+                  <Text style={styles.btnText}>All leagues</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => router.push('/refer/leaderboard')}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Leaderboard, you are number ${ME.rank}`}
+                  style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
+                >
+                  <Ionicons name="trophy-outline" size={16} color={R.text} />
+                  <Text style={styles.btnText}>Leaderboard</Text>
+                  <Text style={styles.btnRank}>#{ME.rank}</Text>
+                </Pressable>
               </View>
             </View>
-          </>
-        )}
-      </TabScroll>
-      <Toast toast={toast} bottom={bottomSpace} />
+          </View>
+
+          {/* Redeem points */}
+          <View
+            onLayout={(e) => {
+              redeemY.current = e.nativeEvent.layout.y;
+            }}
+          >
+            <Text style={styles.sectionTitle}>Redeem points</Text>
+            <Segmented value={shelf} options={SHELVES} onChange={setShelf} stretch />
+            <View style={styles.grid}>
+              {items.slice(0, 2).map((item) => (
+                <RewardCard
+                  key={item.id}
+                  item={item}
+                  width={cardW}
+                  balance={balance}
+                  onPress={() => setSelected(item)}
+                />
+              ))}
+            </View>
+            <Pressable
+              onPress={() => router.push({ pathname: '/refer/store', params: { shelf } })}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.viewAll, pressed && styles.pressed]}
+            >
+              <Text style={styles.viewAllText}>
+                View all {shelf === 'product' ? 'products' : 'vouchers'} ({items.length})
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={R.text} />
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Solid strip behind the status bar once the sheet scrolls under it */}
+      <Animated.View pointerEvents="none" style={[styles.topCover, { height: insets.top, opacity: cover }]} />
+
+      <RedeemSheet
+        item={selected}
+        balance={balance}
+        onClose={() => setSelected(null)}
+        onEarnMore={() => {
+          setSelected(null);
+          setTimeout(() => void whatsapp(), 350);
+        }}
+      />
+    </View>
+  );
+}
+
+/** "Refer a friend & get FREE …" — cycles through the prizes, as in the Figma banner. */
+function HeroSlides() {
+  const [i, setI] = useState(0);
+  const fade = useAnimatedValue(1);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      Animated.timing(fade, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => {
+        setI((n) => (n + 1) % HERO_SLIDES.length);
+        Animated.timing(fade, { toValue: 1, duration: 320, useNativeDriver: true }).start();
+      });
+    }, SLIDE_MS);
+    return () => clearInterval(timer);
+  }, [fade]);
+
+  const slide = HERO_SLIDES[i];
+  const lift = fade.interpolate({ inputRange: [0, 1], outputRange: [6, 0] });
+
+  return (
+    <View style={styles.slides}>
+      <View style={styles.flex}>
+        <Text style={styles.kicker}>Refer a friend & get</Text>
+        <Text style={styles.free}>FREE</Text>
+        <Animated.Text style={[styles.prize, { opacity: fade, transform: [{ translateY: lift }] }]} numberOfLines={1}>
+          {slide.title}
+        </Animated.Text>
+        <View style={styles.dots}>
+          {HERO_SLIDES.map((s, n) => (
+            <View key={s.key} style={[styles.dotSlide, n === i && styles.dotSlideOn]} />
+          ))}
+        </View>
+      </View>
+      <View style={styles.art}>
+        <View style={styles.disc} />
+        <Animated.Image
+          source={slide.image}
+          resizeMode="contain"
+          style={[styles.artImage, { opacity: fade, transform: [{ translateY: lift }] }]}
+        />
+      </View>
+    </View>
+  );
+}
+
+function HowStep({ image, text }: { image: number; text: string }) {
+  return (
+    <View style={styles.howStep}>
+      <View style={styles.howIcon}>
+        <Image source={image} resizeMode="contain" style={styles.howImage} />
+      </View>
+      <Text style={styles.howText}>{text}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bold: {
+  screen: {
+    flex: 1,
+    backgroundColor: R.night,
+  },
+  flex: {
+    flex: 1,
+  },
+  strong: {
     fontFamily: fonts.extraBold,
-    color: ink.text,
+    color: R.text,
   },
-  wallet: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 18,
-    paddingBottom: 16,
-    borderRadius: 22,
-    backgroundColor: ink.yellow,
-    overflow: 'hidden',
+  pressed: {
+    opacity: 0.78,
   },
-  walletLabel: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: 'rgba(21,22,26,0.65)',
+
+  // Hero
+  hero: {
+    backgroundColor: R.night,
+    paddingHorizontal: 20,
+    paddingBottom: SHEET_OVERLAP + 18,
   },
-  walletRow: {
+  header: {
+    height: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
+    justifyContent: 'space-between',
   },
-  walletCoin: {
-    width: 30,
-    height: 30,
-  },
-  walletValue: {
+  title: {
     fontFamily: fonts.extraBold,
-    fontSize: 36,
-    letterSpacing: -1,
-    color: ink.text,
+    fontSize: 21,
+    letterSpacing: -0.5,
+    color: R.onNight,
   },
-  walletSub: {
-    marginTop: 4,
-    fontFamily: fonts.medium,
-    fontSize: 12,
-    color: 'rgba(21,22,26,0.7)',
-  },
-  walletGift: {
-    width: 92,
-    height: 92,
-    marginTop: -6,
-    marginRight: -6,
-  },
-  walletActions: {
-    width: '100%',
+  pointsPill: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 14,
-  },
-  walletPrimary: {
-    flex: 1,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: ink.text,
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  walletPrimaryText: {
-    fontFamily: fonts.extraBold,
-    fontSize: 15,
-    color: '#FFFFFF',
-  },
-  walletGhost: {
-    flex: 1,
-    height: 44,
-    flexDirection: 'row',
     gap: 6,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  walletGhostText: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: ink.text,
-  },
-  refer: {
-    marginTop: 14,
-    padding: 16,
-    gap: 14,
-    borderRadius: 20,
+    height: 36,
+    paddingLeft: 10,
+    paddingRight: 8,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: ink.line,
-    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  referTop: {
-    flexDirection: 'row',
-  },
-  referTitle: {
+  pointsText: {
     fontFamily: fonts.extraBold,
-    fontSize: 18,
-    color: ink.text,
+    fontSize: 14.5,
+    color: R.onNight,
   },
-  referBody: {
-    marginTop: 4,
-    fontFamily: fonts.medium,
-    fontSize: 13,
-    lineHeight: 19,
-    color: ink.muted,
-  },
-  codeRow: {
+  slides: {
+    marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    padding: 6,
-    paddingLeft: 14,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#C9CBD2',
-    backgroundColor: '#FAFAFB',
+    minHeight: 130,
   },
-  codeLabel: {
+  kicker: {
     fontFamily: fonts.semiBold,
-    fontSize: 11,
-    color: ink.muted,
+    fontSize: 14,
+    color: R.onNightMuted,
   },
-  code: {
+  free: {
+    marginTop: 2,
+    fontFamily: fonts.extraBoldItalic,
+    fontSize: 42,
+    lineHeight: 48,
+    color: R.yellow,
+  },
+  prize: {
     fontFamily: fonts.extraBold,
     fontSize: 19,
-    letterSpacing: 2,
-    color: ink.text,
+    letterSpacing: -0.3,
+    color: R.onNight,
   },
-  copy: {
+  dots: {
+    marginTop: 12,
     flexDirection: 'row',
+    gap: 5,
+  },
+  dotSlide: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  dotSlideOn: {
+    width: 14,
+    backgroundColor: R.yellow,
+  },
+  art: {
+    width: 150,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disc: {
+    position: 'absolute',
+    width: 116,
+    height: 116,
+    borderRadius: 58,
+    backgroundColor: R.yellow,
+  },
+  artImage: {
+    width: 148,
+    height: 96,
+  },
+  how: {
+    marginTop: 22,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  howArrow: {
+    marginTop: 12,
+  },
+  howStep: {
+    flex: 1,
     alignItems: 'center',
     gap: 6,
-    height: 40,
-    paddingHorizontal: 14,
-    borderRadius: 11,
-    backgroundColor: ink.yellow,
+  },
+  howIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: R.card,
+  },
+  howImage: {
+    width: 20,
+    height: 20,
+  },
+  howText: {
+    textAlign: 'center',
+    fontFamily: fonts.medium,
+    fontSize: 11,
+    lineHeight: 14,
+    color: R.onNightMuted,
+  },
+
+  // Sheet
+  scrollContent: {
+    flexGrow: 1,
+  },
+  sheet: {
+    flexGrow: 1,
+    marginTop: -SHEET_OVERLAP,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    gap: 24,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    backgroundColor: R.canvas,
+  },
+  sectionTitle: {
+    marginBottom: 10,
+    fontFamily: fonts.extraBold,
+    fontSize: 17,
+    letterSpacing: -0.4,
+    color: R.text,
+  },
+  card: {
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: R.card,
+  },
+  cardRow: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: R.line,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  cardRowTitle: {
+    flex: 1,
+    fontFamily: fonts.bold,
+    fontSize: 13.5,
+    color: R.text,
+  },
+
+  // Invite
+  inviteTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    color: R.muted,
+  },
+  codeRow: {
+    marginTop: 12,
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 14,
+    paddingRight: 5,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#E6DDB8',
+    backgroundColor: '#FBF8EC',
+  },
+  code: {
+    flex: 1,
+    fontFamily: fonts.extraBold,
+    fontSize: 16.5,
+    letterSpacing: 1.6,
+    color: R.text,
+  },
+  copy: {
+    height: 36,
+    paddingHorizontal: 12,
+    borderRadius: 9,
+    backgroundColor: R.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   copyText: {
     fontFamily: fonts.bold,
-    fontSize: 14,
-    color: ink.text,
+    fontSize: 13,
+    color: R.text,
   },
   shareRow: {
+    marginTop: 10,
     flexDirection: 'row',
     gap: 10,
   },
   whatsapp: {
     flex: 1,
-    height: 50,
+    height: 46,
+    borderRadius: 13,
+    backgroundColor: R.whatsapp,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    borderRadius: 14,
-    backgroundColor: '#1FAF55',
   },
   whatsappText: {
     fontFamily: fonts.extraBold,
-    fontSize: 15,
+    fontSize: 14.5,
     color: '#FFFFFF',
   },
-  more: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: ink.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tier: {
-    marginTop: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: 14,
-    borderRadius: 20,
-    backgroundColor: '#FFFAEF',
+  other: {
+    height: 46,
+    paddingHorizontal: 18,
+    borderRadius: 13,
     borderWidth: 1,
-    borderColor: '#FEEEC7',
-  },
-  tierBadge: {
-    width: 56,
-    height: 56,
-  },
-  tierName: {
-    fontFamily: fonts.extraBold,
-    fontSize: 16,
-    color: ink.text,
-  },
-  bar: {
-    height: 8,
-    marginTop: 8,
-    borderRadius: 4,
-    backgroundColor: '#F1E6C4',
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 4,
-    backgroundColor: ink.yellowDeep,
-  },
-  tierNext: {
-    marginTop: 6,
-    fontFamily: fonts.semiBold,
-    fontSize: 12,
-    color: ink.label,
-  },
-  section: {
-    marginTop: 24,
-    marginBottom: 12,
-    fontFamily: fonts.extraBold,
-    fontSize: 17,
-    color: ink.text,
-  },
-  earnGrid: {
+    borderColor: '#E2E2DC',
     flexDirection: 'row',
-    gap: 8,
-  },
-  earn: {
-    flex: 1,
-    padding: 10,
-    gap: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: ink.line,
-  },
-  earnIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFF6C2',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 7,
   },
-  earnTitle: {
-    minHeight: 30,
-    fontFamily: fonts.semiBold,
-    fontSize: 11,
-    lineHeight: 15,
-    color: ink.text,
-  },
-  earnPoints: {
-    fontFamily: fonts.extraBold,
-    fontSize: 12,
-    color: ink.gold,
-  },
-  segment: {
-    flexDirection: 'row',
-    marginTop: 26,
-    marginBottom: 14,
-    padding: 4,
-    borderRadius: 14,
-    backgroundColor: '#F2F3F5',
-  },
-  segmentItem: {
-    flex: 1,
-    height: 38,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentOn: {
-    backgroundColor: ink.yellow,
-  },
-  segmentText: {
+  otherText: {
     fontFamily: fonts.bold,
-    fontSize: 14,
-    color: ink.muted,
-  },
-  segmentTextOn: {
-    color: ink.text,
+    fontSize: 13.5,
+    color: R.text,
   },
   chips: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  chip: {
-    height: 34,
-    paddingHorizontal: 14,
-    borderRadius: 17,
-    borderWidth: 1.5,
-    borderColor: ink.line,
-    justifyContent: 'center',
-  },
-  chipOn: {
-    borderColor: ink.text,
-    backgroundColor: ink.text,
-  },
-  chipText: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: ink.muted,
-  },
-  chipTextOn: {
-    color: '#FFFFFF',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: 12,
-  },
-  item: {
-    width: '48.5%',
-    padding: 10,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: ink.line,
-    backgroundColor: '#FFFFFF',
-  },
-  itemArt: {
-    height: 104,
-    borderRadius: 12,
-    backgroundColor: '#F6F7F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  itemImg: {
-    width: '80%',
-    height: 86,
-  },
-  voucherIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: ink.yellow,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  itemName: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: ink.text,
-  },
-  itemDetail: {
-    marginTop: 1,
-    fontFamily: fonts.medium,
-    fontSize: 11,
-    color: ink.muted,
-  },
-  itemPoints: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 8,
-  },
-  itemCoin: {
-    width: 16,
-    height: 16,
-  },
-  itemPointsText: {
-    fontFamily: fonts.extraBold,
-    fontSize: 15,
-    color: ink.text,
-  },
-  itemBtn: {
-    height: 34,
-    marginTop: 10,
-    borderRadius: 10,
-    backgroundColor: ink.yellow,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  itemBtnOff: {
-    backgroundColor: '#F2F3F5',
-  },
-  itemBtnText: {
-    fontFamily: fonts.bold,
-    fontSize: 12,
-    color: ink.text,
-  },
-  itemBtnTextOff: {
-    color: ink.muted,
-  },
-  journey: {
-    paddingTop: 4,
-  },
-  step: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  rail: {
-    alignItems: 'center',
-    width: 24,
-  },
-  dot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#F2F3F5',
-    borderWidth: 1.5,
-    borderColor: '#E2E3E8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 22,
-  },
-  dotOn: {
-    backgroundColor: ink.yellow,
-    borderColor: ink.yellowDeep,
-  },
-  line: {
-    width: 2,
-    flex: 1,
-    backgroundColor: '#E2E3E8',
-  },
-  lineOn: {
-    backgroundColor: ink.yellowDeep,
-  },
-  stepCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    marginBottom: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: ink.line,
-    backgroundColor: '#FFFFFF',
-  },
-  stepCardOn: {
-    borderColor: ink.yellowDeep,
-    backgroundColor: '#FFFBE6',
-  },
-  stepCardLocked: {
-    backgroundColor: '#FAFAFB',
-  },
-  stepBadge: {
-    width: 44,
-    height: 44,
-  },
-  stepTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
     gap: 6,
   },
-  stepName: {
-    fontFamily: fonts.extraBold,
-    fontSize: 15,
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 26,
+    paddingHorizontal: 9,
+    borderRadius: 13,
+    backgroundColor: '#F4F3EF',
   },
-  stepRange: {
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  chipText: {
     fontFamily: fonts.semiBold,
-    fontSize: 11,
-    color: ink.muted,
+    fontSize: 11.5,
+    color: R.text,
   },
-  stepReward: {
-    marginTop: 2,
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: ink.text,
-  },
-  stepRate: {
-    marginTop: 2,
-    fontFamily: fonts.medium,
-    fontSize: 11,
-    color: ink.muted,
-  },
-  claim: {
-    height: 30,
-    paddingHorizontal: 12,
-    borderRadius: 9,
-    backgroundColor: ink.text,
-    justifyContent: 'center',
-  },
-  claimText: {
-    fontFamily: fonts.bold,
-    fontSize: 12,
-    color: ink.yellow,
-  },
-  board: {
-    paddingTop: 16,
-    paddingHorizontal: 12,
-    borderRadius: 22,
-    backgroundColor: ink.text,
-    overflow: 'hidden',
-  },
-  boardTitle: {
-    textAlign: 'center',
-    fontFamily: fonts.extraBold,
-    fontSize: 15,
-    color: '#FFFFFF',
-  },
-  podium: {
+
+  // Your league
+  ladder: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    marginTop: 14,
+    marginBottom: 18,
   },
-  podiumCol: {
+  rung: {
     flex: 1,
-    alignItems: 'center',
+    height: 2,
+    marginBottom: 26,
+    borderRadius: 1,
+    backgroundColor: '#E6E5DF',
   },
-  podiumFirst: {
-    marginBottom: 0,
+  rungOn: {
+    backgroundColor: R.gold,
   },
-  prizeImg: {
+  rungItem: {
     width: 54,
-    height: 54,
-  },
-  prizeImgFirst: {
-    width: 70,
-    height: 70,
-  },
-  prizeName: {
-    marginTop: 4,
-    maxWidth: '92%',
-    fontFamily: fonts.semiBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.65)',
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    marginTop: 10,
-    borderRadius: 22,
-    backgroundColor: '#2A2B31',
-    borderWidth: 2,
-    borderColor: '#4A4C55',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 5,
   },
-  avatarFirst: {
-    marginTop: 22,
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    borderColor: ink.yellow,
+  rungBadge: {
+    height: 40,
+    justifyContent: 'flex-end',
   },
-  crown: {
-    position: 'absolute',
-    top: -16,
+  rungFuture: {
+    opacity: 0.35,
   },
-  avatarText: {
-    fontFamily: fonts.extraBold,
-    fontSize: 15,
-    color: '#FFFFFF',
-  },
-  podiumName: {
-    marginTop: 6,
-    fontFamily: fonts.bold,
-    fontSize: 12,
-    color: '#FFFFFF',
-  },
-  podiumPoints: {
-    fontFamily: fonts.semiBold,
-    fontSize: 11,
-    color: ink.yellow,
-  },
-  rankBlock: {
-    alignSelf: 'stretch',
-    marginTop: 8,
-    marginHorizontal: 6,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-    backgroundColor: 'rgba(255,227,0,0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rankText: {
-    fontFamily: fonts.extraBold,
-    fontSize: 13,
-    color: ink.yellow,
-  },
-  boardNote: {
-    paddingVertical: 10,
-    textAlign: 'center',
+  rungName: {
     fontFamily: fonts.medium,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.55)',
+    fontSize: 10.5,
+    color: R.faint,
   },
-  list: {
-    marginTop: 12,
-    gap: 8,
+  rungNameOn: {
+    fontFamily: fonts.extraBold,
+    color: R.text,
   },
-  listRow: {
+  leagueHeadline: {
+    fontFamily: fonts.extraBold,
+    fontSize: 16.5,
+    lineHeight: 22,
+    letterSpacing: -0.4,
+    color: R.text,
+  },
+  buttons: {
+    marginTop: 16,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  btn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 13,
+    backgroundColor: '#F4F3EF',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    height: 56,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: ink.line,
-  },
-  listYou: {
-    borderColor: ink.yellowDeep,
-    backgroundColor: '#FFFBE6',
-  },
-  listRank: {
-    width: 18,
-    fontFamily: fonts.extraBold,
-    fontSize: 14,
-    color: ink.text,
-  },
-  listAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#F2F3F5',
-    alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
   },
-  listAvatarText: {
-    fontFamily: fonts.bold,
-    fontSize: 12,
-    color: ink.text,
-  },
-  listName: {
-    flex: 1,
-    fontFamily: fonts.semiBold,
-    fontSize: 14,
-    color: ink.text,
-  },
-  listPoints: {
+  btnText: {
     fontFamily: fonts.bold,
     fontSize: 13,
-    color: ink.label,
+    color: R.text,
+  },
+  btnRank: {
+    fontFamily: fonts.extraBold,
+    fontSize: 13,
+    color: R.goldDeep,
+  },
+  bar: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  barCount: {
+    fontFamily: fonts.bold,
+    fontSize: 12.5,
+    color: R.text,
+  },
+
+  // Redeem points
+  grid: {
+    marginTop: 12,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  viewAll: {
+    marginTop: 12,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: R.card,
+    borderWidth: 1,
+    borderColor: '#E4E3DD',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  viewAllText: {
+    fontFamily: fonts.bold,
+    fontSize: 13.5,
+    color: R.text,
+  },
+
+  topCover: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    backgroundColor: R.canvas,
   },
 });

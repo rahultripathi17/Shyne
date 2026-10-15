@@ -103,4 +103,5 @@ export const fonts = {
   semiBold: 'PlusJakartaSans_600SemiBold',
   bold: 'PlusJakartaSans_700Bold',
   extraBold: 'PlusJakartaSans_800ExtraBold',
+  extraBoldItalic: 'PlusJakartaSans_800ExtraBold_Italic',
 };

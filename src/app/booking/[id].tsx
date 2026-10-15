@@ -10,13 +10,15 @@ import { ink } from '../../components/home/homeTheme';
 import { fonts, formatPrice, noBounce } from '../../components/theme';
 import { Toast, useToast } from '../../components/Toast';
 import { TopBar } from '../../components/TopBar';
+import { ServiceTracking } from '../../components/tracking/ServiceTracking';
 import { journeyFor, journeyStep, VERTICALS } from '../../data/bookingsDemo';
+import { isTrackStage, stageFor } from '../../data/serviceTracking';
 import { useAllBookings } from '../../lib/bookings';
 
 /** The full booking page: status, schedule, journey, extras, payment, rating and help. */
 export default function BookingDetailsScreen() {
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, stage } = useLocalSearchParams<{ id: string; stage?: string }>();
   const item = useAllBookings().find((b) => b.id === id);
   const toast = useToast();
   const [stars, setStars] = useState(0);
@@ -28,6 +30,12 @@ export default function BookingDetailsScreen() {
         <Text style={styles.missing}>This booking isn’t available any more.</Text>
       </View>
     );
+  }
+
+  // Wash and garage visits get the live tracking page; `?stage=` previews any stage.
+  if ((item.vertical === 'washes' || item.vertical === 'garage') && !item.usage) {
+    const at = isTrackStage(stage) ? stage : stageFor(item);
+    return <ServiceTracking key={`${item.id}-${at}`} item={item} stage={at} />;
   }
 
   const vertical = VERTICALS.find((v) => v.key === item.vertical) ?? VERTICALS[0];
@@ -77,7 +85,11 @@ export default function BookingDetailsScreen() {
             <Text style={styles.when}>{item.when.title}</Text>
           </View>
           <View style={styles.row}>
-            <Ionicons name={item.subIsNote ? 'information-circle-outline' : 'location-outline'} size={18} color={ink.muted} />
+            <Ionicons
+              name={item.subIsNote ? 'information-circle-outline' : 'location-outline'}
+              size={18}
+              color={ink.muted}
+            />
             <Text style={styles.rowText}>{item.when.sub}</Text>
           </View>
           {upcoming && (
@@ -160,7 +172,11 @@ export default function BookingDetailsScreen() {
                   accessibilityLabel={`${n} out of 5 stars`}
                   accessibilityState={{ selected: n <= stars }}
                 >
-                  <Ionicons name={n <= stars ? 'star' : 'star-outline'} size={30} color={n <= stars ? ink.yellowDeep : '#C9CBD2'} />
+                  <Ionicons
+                    name={n <= stars ? 'star' : 'star-outline'}
+                    size={30}
+                    color={n <= stars ? ink.yellowDeep : '#C9CBD2'}
+                  />
                 </Pressable>
               ))}
             </View>
@@ -171,7 +187,11 @@ export default function BookingDetailsScreen() {
         {/* Help */}
         <View style={styles.help}>
           {inProgress && (
-            <Pressable onPress={() => soon('Calling your professional')} style={styles.helpBtn} accessibilityRole="button">
+            <Pressable
+              onPress={() => soon('Calling your professional')}
+              style={styles.helpBtn}
+              accessibilityRole="button"
+            >
               <Ionicons name="call-outline" size={17} color={ink.text} />
               <Text style={styles.helpText}>Call professional</Text>
             </Pressable>

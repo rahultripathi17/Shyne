@@ -25,11 +25,16 @@ export type DockItem =
       /** Service end code — the customer shares it with the expert to close the service. */
       endCode?: string;
     }
+  /**
+   * Pay Later: the booking is under way and the customer chose to pay after the service. Stays in the
+   * dock until it's paid.
+   */
+  | { kind: 'pay'; id: string; service: string; amount: number }
   | { kind: 'rate'; id: string; service: string; expert: string }
   | { kind: 'cart'; id: string; count: number }
   | { kind: 'pack'; id: string; pack: string; left: number; total: number; expiresInDays: number };
 
-export type DockTone = 'live' | 'neutral';
+export type DockTone = 'live' | 'due' | 'neutral';
 
 export type DockCopy = {
   title: string;
@@ -40,6 +45,7 @@ export type DockCopy = {
 };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
 /** One status line first (what's happening), then one supporting line (what / who). */
 export function dockCopy(item: DockItem): DockCopy {
@@ -78,6 +84,13 @@ export function dockCopy(item: DockItem): DockCopy {
       }
       break;
     }
+    case 'pay':
+      return {
+        title: `${rupees(item.amount)} due after your wash`,
+        detail: `Pay Later · ${item.service}`,
+        cta: 'Pay now',
+        tone: 'due',
+      };
     case 'rate':
       return {
         title: 'How was your wash?',
@@ -106,11 +119,11 @@ export function dockCopy(item: DockItem): DockCopy {
   return { title: '', detail: '', tone: 'neutral' };
 }
 
-const RANK: Record<DockItem['kind'], number> = { live: 0, rate: 1, cart: 2, pack: 3 };
+const RANK: Record<DockItem['kind'], number> = { live: 0, pay: 1, rate: 2, cart: 3, pack: 4 };
 // The furthest-along service first: the expert at your car beats one still on the way.
 const STAGE_RANK: Record<LiveStage, number> = { in_progress: 0, arrived: 1, on_the_way: 2, scheduled: 3 };
 
-/** Today's service first (furthest along), then the rating, the cart nudge and finally packs. */
+/** Today's service first (furthest along), then Pay Later, the rating, the cart nudge and finally packs. */
 export function sortDock(items: DockItem[]) {
   return [...items].sort(
     (a, b) =>
@@ -131,7 +144,8 @@ export type DockEntry = { key: string; label: string; item: DockItem };
 
 /**
  * Preview build: every state the dock can show, with sample data, in the exact order a day goes —
- * booked today → expert on the way → arrived → washing → rate, then the cart reminder and packs.
+ * booked today → expert on the way → arrived → washing → pay later → rate, then the cart reminder and
+ * packs.
  * Each one can be switched off in Profile → Edit profile → Configuration.
  */
 export const DOCK_STATES: DockEntry[] = [
@@ -150,6 +164,11 @@ export const DOCK_STATES: DockEntry[] = [
     key: 'in_progress',
     label: 'Wash in progress',
     item: { ...TODAY, stage: 'in_progress', slot: '2:30 PM', minutesLeft: 25, progress: 0.75 },
+  },
+  {
+    key: 'pay_later',
+    label: 'Pay Later · booking ongoing',
+    item: { kind: 'pay', id: 'w2', service: 'Exterior Foam Wash', amount: 549 },
   },
   {
     key: 'rate',

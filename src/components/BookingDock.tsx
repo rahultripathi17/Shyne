@@ -19,9 +19,11 @@ const CARD_H = 60;
 /** The row's own soft surface inside the white nav panel. */
 const ROW_BG = '#F4F5F7';
 const GREEN = '#0E9F5A';
+const AMBER = '#B76E00';
 /** Icon colour and the soft circle behind it, by urgency. */
 const TONE: Record<DockTone, { icon: string; bg: string }> = {
   live: { icon: GREEN, bg: '#E9F7EF' },
+  due: { icon: AMBER, bg: '#FFF1D6' },
   neutral: { icon: ink.text, bg: '#FFFFFF' },
 };
 
@@ -199,6 +201,7 @@ const ICON: Record<string, IconName> = {
   on_the_way: 'navigate',
   arrived: 'location',
   in_progress: 'water',
+  pay: 'wallet',
   rate: 'star',
   cart: 'cart',
 };

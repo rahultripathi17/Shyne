@@ -128,17 +128,6 @@ export default function HomeScreen() {
 
   const onBanner = (target: BannerTarget) => open(target);
 
-  const refreshLocation = async () => {
-    toast.show('Finding your address…');
-    const result = await detectAddress();
-    if (result.ok) {
-      setLocation(result.location);
-      toast.show('Address updated');
-    } else {
-      toast.show(result.reason === 'denied' ? 'Allow location for Hoora in Settings' : 'Couldn’t find your address');
-    }
-  };
-
   return (
     <View style={styles.screen}>
       <Animated.ScrollView
@@ -174,46 +163,46 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: bottomSpace }}
       >
         <Animated.View style={{ transform: [{ translateY: pinY }] }}>
-        <View>
-          <HeroBanner
-            width={width}
-            height={bannerHeight}
-            topFadeHeight={insets.top + 120}
-            dotsBottom={SHEET_OVERLAP + 14}
-            onPress={onBanner}
-          />
-          <View pointerEvents="box-none" style={[styles.headerOverlay, { paddingTop: insets.top }]}>
-            <HomeHeader
-              addressLabel={location?.label ?? 'Set your location'}
-              address={location?.address ?? 'Tap to detect your address'}
-              vehicle={selectedCar}
-              onLocationPress={refreshLocation}
-              onVehiclePress={() => setVehiclesOpen(true)}
+          <View>
+            <HeroBanner
+              width={width}
+              height={bannerHeight}
+              topFadeHeight={insets.top + 120}
+              dotsBottom={SHEET_OVERLAP + 14}
+              onPress={onBanner}
             />
+            <View pointerEvents="box-none" style={[styles.headerOverlay, { paddingTop: insets.top }]}>
+              <HomeHeader
+                addressLabel={location?.label ?? 'Set your location'}
+                address={location?.address ?? 'Tap to detect your address'}
+                vehicle={selectedCar}
+                onLocationPress={() => router.push('/address')}
+                onVehiclePress={() => setVehiclesOpen(true)}
+              />
+            </View>
           </View>
-        </View>
 
-        <View style={styles.sheet}>
-          {refreshing ? (
-            <HomeSkeleton width={contentWidth} />
-          ) : (
-            <>
-              <FadeIn>
-                <MainCategories width={contentWidth} onPress={open} />
-              </FadeIn>
+          <View style={styles.sheet}>
+            {refreshing ? (
+              <HomeSkeleton width={contentWidth} />
+            ) : (
+              <>
+                <FadeIn>
+                  <MainCategories width={contentWidth} onPress={open} />
+                </FadeIn>
 
-              <FadeIn delay={120}>
-                <AllServices width={contentWidth} onPress={open} />
-              </FadeIn>
+                <FadeIn delay={120}>
+                  <AllServices width={contentWidth} onPress={open} />
+                </FadeIn>
 
-              <FadeIn delay={220}>
-                <ChallanBanner plate={selectedCar?.plate} onPress={() => open('challan')} />
-              </FadeIn>
-            </>
-          )}
+                <FadeIn delay={220}>
+                  <ChallanBanner plate={selectedCar?.plate} onPress={() => open('challan')} />
+                </FadeIn>
+              </>
+            )}
 
-          <BrandFooter />
-        </View>
+            <BrandFooter />
+          </View>
         </Animated.View>
       </Animated.ScrollView>
 
@@ -222,10 +211,7 @@ export default function HomeScreen() {
       )}
 
       {/* Solid strip behind the status bar once content scrolls under it */}
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.topCover, { height: insets.top, opacity: topCoverOpacity }]}
-      />
+      <Animated.View pointerEvents="none" style={[styles.topCover, { height: insets.top, opacity: topCoverOpacity }]} />
 
       <VehicleSheet visible={vehiclesOpen} onClose={() => setVehiclesOpen(false)} />
 

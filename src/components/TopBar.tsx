@@ -6,7 +6,7 @@ import { ink } from './home/homeTheme';
 import { fonts } from './theme';
 
 type Props = {
-  title: string;
+  title: ReactNode;
   topInset: number;
   onBack: () => void;
   right?: ReactNode;
