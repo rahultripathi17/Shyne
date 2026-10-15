@@ -46,15 +46,23 @@ export type SavedAddress = {
   floor?: string;
   /** Area / sector / locality, from the map pin. */
   area: string;
+  /** Where the pin was dropped. */
+  lat?: number;
+  lng?: number;
   landmark?: string;
   howToReach?: string;
-  /** Booking for someone else: who the partner should contact. */
+  /** Address of someone else: who it's for (they get the updates and OTP). */
   contact?: { name: string; phone: string };
 };
 
 /** One line for lists and the address bars. */
 export const addressLine = (a: SavedAddress) =>
   [a.flat, a.floor && `Floor ${a.floor}`, a.area].filter(Boolean).join(', ');
+
+export type ContactLabel = 'Driver' | 'Security' | 'Family' | 'Friend';
+
+/** Someone the partner can call instead of you (driver, security, a family member…). */
+export type SavedContact = { id: string; name: string; phone: string; label?: ContactLabel };
 
 export type Booking = {
   id: string;
@@ -67,6 +75,14 @@ export type Booking = {
   address: string;
   addOnIds: string[];
   total: number;
+  /** Booking for someone else: who it's for. */
+  bookedFor?: { name: string; phone: string };
+  /** Who the partner calls at the vehicle (you, them, or a driver / caretaker). */
+  contact?: { name: string; phone: string; role: string };
+  /** Booked with Pay Later: the amount is due after the service. */
+  payLater?: boolean;
+  /** How it was paid, e.g. "UPI". */
+  paidVia?: string;
   status: 'Confirmed' | 'Completed' | 'Cancelled';
   createdAt: number;
 };
@@ -101,6 +117,8 @@ type Persisted = {
   notifPrefs?: NotifPrefs;
   location: SavedLocation | null;
   addresses?: SavedAddress[];
+  /** People added at checkout as the service contact. */
+  contacts?: SavedContact[];
   cars: SavedCar[];
   selectedCarId?: string;
   bookings: Booking[];
@@ -159,6 +177,8 @@ type AppState = Persisted & {
   /** Makes a saved address the current one (Home header and booking). */
   pickAddress: (id: string) => void;
   removeAddress: (id: string) => void;
+  /** Adds (or updates, same number) a service contact and returns its id. */
+  saveContact: (contact: Omit<SavedContact, 'id'>) => string;
   completeOnboarding: () => void;
   addCar: (car: Omit<SavedCar, 'id'>) => void;
   selectCar: (id: string) => void;
@@ -221,6 +241,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           const a = s.addresses?.find((x) => x.id === id);
           return a ? { location: { label: a.tag, address: addressLine(a), detected: false } } : {};
         }),
+      saveContact: (contact) => {
+        const existing = state.contacts?.find((c) => c.phone === contact.phone);
+        const id = existing?.id ?? newId();
+        update((s) => ({
+          contacts: [{ ...contact, id }, ...(s.contacts ?? []).filter((c) => c.id !== id)],
+        }));
+        return id;
+      },
       removeAddress: (id) => update((s) => ({ addresses: (s.addresses ?? []).filter((a) => a.id !== id) })),
       completeOnboarding: () =>
         update((s) => ({

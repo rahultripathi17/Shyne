@@ -1,12 +1,10 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { HooraLogo } from '../HooraLogo';
 import { formatPlate } from '../PlateField';
 import { fonts } from '../theme';
 import { ART, FittedArt } from './artwork';
-import { ink, type } from './homeTheme';
+import { ink } from './homeTheme';
 import { PressableScale } from './motion';
 
 // Dynamic alert banner (Figma challan banners). With a vehicle number it shows what's due
@@ -19,38 +17,20 @@ export function ChallanBanner({ plate, onPress }: { plate?: string; onPress: () 
       scaleTo={0.98}
       accessibilityLabel={due ? '1 pending challan, pay now' : 'Check your challans'}
     >
-      <LinearGradient
-        colors={['#FFF3CC', '#FFFAEB', '#FFFFFF']}
-        locations={[0, 0.65, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0.4 }}
-        style={styles.alert}
-      >
-        <View style={{ flex: 1 }}>
-          <Text style={[type.overline, { color: due ? '#C8372D' : ink.gold }]}>
-            {due ? 'ACTION NEEDED' : 'STAY CHALLAN-FREE'}
+      <View style={[styles.alert, due && styles.alertDue]}>
+        <FittedArt art={due ? ART.challanCar : ART.challan} box={due ? { w: 64, h: 34 } : { w: 46, h: 40 }} />
+        <View style={styles.alertText}>
+          <Text style={styles.alertTitle} numberOfLines={1}>
+            {due ? '1 pending challan' : 'Check your challans'}
           </Text>
-          <Text style={[type.title, styles.alertTitle]}>{due ? '1 pending challan' : 'Check your challans'}</Text>
-          <Text style={[type.body, styles.alertBody]}>
-            {due ? 'Settle now to avoid heavy fines' : 'Instant check with your vehicle number'}
+          <Text style={styles.alertBody} numberOfLines={1}>
+            {due ? `On ${formatPlate(plate)} · pay to avoid extra fines` : 'Instant check with your vehicle number'}
           </Text>
-          <View style={styles.payRow}>
-            <Text style={styles.pay}>{due ? 'Pay now' : 'Check now'}</Text>
-            <Ionicons name="arrow-forward" size={13} color={ink.gold} />
-          </View>
         </View>
-        <View style={styles.alertRight}>
-          {due && (
-            <View style={styles.plate}>
-              <View style={styles.plateInd}>
-                <Text style={styles.plateIndText}>IND</Text>
-              </View>
-              <Text style={styles.plateText}>{formatPlate(plate)}</Text>
-            </View>
-          )}
-          <FittedArt art={due ? ART.challanCar : ART.challan} box={due ? { w: 108, h: 50 } : { w: 86, h: 70 }} />
+        <View style={[styles.payBtn, due && styles.payBtnDue]}>
+          <Text style={[styles.pay, due && styles.payDue]}>{due ? 'Pay now' : 'Check'}</Text>
         </View>
-      </LinearGradient>
+      </View>
     </PressableScale>
   );
 }
@@ -87,63 +67,52 @@ const styles = StyleSheet.create({
   alert: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingLeft: 16,
+    gap: 12,
+    minHeight: 68,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingLeft: 12,
     paddingRight: 12,
     borderWidth: 1,
-    borderColor: '#F2E1A6',
-    overflow: 'hidden',
+    borderColor: '#ECEDF1',
+    backgroundColor: ink.card,
+  },
+  alertDue: {
+    borderColor: '#F6D7D3',
+    backgroundColor: '#FFF8F7',
+  },
+  alertText: {
+    flex: 1,
   },
   alertTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
     color: ink.text,
-    marginTop: 2,
   },
   alertBody: {
+    marginTop: 2,
+    fontFamily: fonts.medium,
+    fontSize: 11.5,
     color: ink.muted,
-    fontSize: 12,
-    marginTop: 1,
   },
-  payRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 8,
+  payBtn: {
+    height: 30,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D5D7DC',
+    justifyContent: 'center',
+  },
+  payBtnDue: {
+    borderColor: ink.text,
+    backgroundColor: ink.text,
   },
   pay: {
-    ...type.label,
-    fontSize: 12.5,
-    color: ink.gold,
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    color: ink.text,
   },
-  alertRight: {
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  plate: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#2A3C6E',
-    borderRadius: 4,
-    paddingVertical: 2,
-    paddingLeft: 2,
-    paddingRight: 6,
-  },
-  plateInd: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 2,
-    paddingHorizontal: 3,
-    paddingVertical: 2,
-  },
-  plateIndText: {
-    fontFamily: fonts.bold,
-    fontSize: 6,
-    color: '#153E8E',
-  },
-  plateText: {
-    fontFamily: fonts.bold,
-    fontSize: 8.5,
+  payDue: {
     color: '#FFFFFF',
   },
   footer: {
@@ -155,8 +124,8 @@ const styles = StyleSheet.create({
   },
   footerTitle: {
     fontFamily: fonts.extraBold,
-    fontSize: 22,
-    lineHeight: 26,
+    fontSize: 17,
+    lineHeight: 22,
     letterSpacing: -0.6,
     color: '#C9CAD1',
     textAlign: 'center',
@@ -176,7 +145,7 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontFamily: fonts.extraBold,
-    fontSize: 16,
+    fontSize: 14,
     color: '#9EA0A8',
   },
   statLabel: {

@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   title: {
     marginTop: 2,
     fontFamily: fonts.semiBold,
-    fontSize: 18,
+    fontSize: 17,
     color: T.text,
   },
   periods: {
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
   },
   upTitle: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: 20,
     color: T.text,
   },
   upSub: {
@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
   },
   cmpPriceBig: {
     fontFamily: fonts.bold,
-    fontSize: 18,
+    fontSize: 17,
     color: T.text,
     marginBottom: 6,
   },
@@ -669,7 +669,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     textAlign: 'center',
     fontFamily: fonts.semiBold,
-    fontSize: 19,
+    fontSize: 17,
     lineHeight: 25,
     color: T.text,
   },

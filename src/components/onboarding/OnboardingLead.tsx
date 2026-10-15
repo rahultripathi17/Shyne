@@ -28,7 +28,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.extraBold,
-    fontSize: 26,
+    fontSize: 22,
     lineHeight: 32,
     letterSpacing: -0.6,
     color: ink.text,

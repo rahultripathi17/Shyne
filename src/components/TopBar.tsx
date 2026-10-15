@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 2,
     fontFamily: fonts.extraBold,
-    fontSize: 18,
+    fontSize: 17,
     letterSpacing: -0.3,
     color: ink.text,
   },

@@ -12,9 +12,7 @@ export function useToast() {
     if (!message) return;
     Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }).start();
     const timer = setTimeout(() => {
-      Animated.timing(opacity, { toValue: 0, duration: 220, useNativeDriver: true }).start(() =>
-        setMessage(''),
-      );
+      Animated.timing(opacity, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => setMessage(''));
     }, 1800);
     return () => clearTimeout(timer);
   }, [message, opacity]);

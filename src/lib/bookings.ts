@@ -40,6 +40,7 @@ function fromStore(b: Booking): BookingItem {
     when: { icon: 'calendar', title: `${fmtDate(b.date)} · ${b.slot}`, sub: b.address },
     placed: `Booked ${new Date(b.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}`,
     amount: b.total,
+    amountDue: b.payLater && b.status === 'Confirmed' ? true : undefined,
     action: done ? 'Book again' : 'View details',
     primary: false,
     history: done,

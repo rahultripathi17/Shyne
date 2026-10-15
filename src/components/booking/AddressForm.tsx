@@ -2,22 +2,23 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { afterSheetCloses, pickContact, pickError } from '../../lib/pickContact';
 import type { AddressTag, SavedAddress } from '../../store/AppStore';
-import { Sheet } from '../rewards/ClaimForm';
 import { fonts } from '../theme';
 import { YellowButton } from '../tracking/TrackingSheets';
 import { T } from '../tracking/trackTheme';
+import { FormSheet } from './FormSheet';
+import { useNotice } from './useNotice';
 
-// "Save address details" sheet over the map (live app, Oct 2026): who it's for, the tag, flat,
-// floor, area from the pin, landmark and how to reach.
+// "Save address details" over the map, as in the live app: who it's for at the top (with the
+// receiver's name and number when it's someone else), then the tag, flat, floor, area, landmark
+// and how to reach. Who the partner calls is chosen at checkout, not here.
 
-const TAGS: { tag: AddressTag; icon: 'home-outline' | 'briefcase-outline' | 'person-outline' }[] = [
+const TAGS: { tag: AddressTag; icon: 'home-outline' | 'briefcase-outline' | 'location-outline' }[] = [
   { tag: 'Home', icon: 'home-outline' },
   { tag: 'Work', icon: 'briefcase-outline' },
-  { tag: 'Other', icon: 'person-outline' },
+  { tag: 'Other', icon: 'location-outline' },
 ];
-
-const BLUE = '#1A5FD0';
 
 type Draft = Omit<SavedAddress, 'id'>;
 
@@ -36,6 +37,8 @@ export function AddressForm({
   onClose: () => void;
   onSave: (address: Draft) => void;
 }) {
+  const [notice, setNotice] = useNotice();
+  const [picking, setPicking] = useState(false);
   const [v, setV] = useState({
     tag: initial?.tag ?? ('Home' as AddressTag),
     flat: initial?.flat ?? '',
@@ -53,11 +56,24 @@ export function AddressForm({
       setV((s) => ({ ...s, [k]: val }));
 
   const flatMissing = !v.flat.trim();
-  const contactMissing = v.someoneElse && (!v.name.trim() || v.phone.replace(/\D/g, '').length !== 10);
+  const receiverMissing = v.someoneElse && (v.name.trim().length < 2 || v.phone.length !== 10);
+
+  const fromContacts = async () => {
+    // iOS can't show the system picker over our sheet: step the sheet aside, pick, bring it back.
+    setPicking(true);
+    await afterSheetCloses();
+    const res = await pickContact();
+    setPicking(false);
+    if (res.ok) setV((s) => ({ ...s, name: res.contact.name, phone: res.contact.phone }));
+    else if (pickError(res.reason)) setNotice(pickError(res.reason));
+  };
 
   const save = () => {
     setTried(true);
-    if (flatMissing || contactMissing) return;
+    if (flatMissing || receiverMissing) {
+      setNotice(flatMissing ? 'Add your flat, house number or building' : 'Add the receiver’s name and number');
+      return;
+    }
     onSave({
       tag: v.tag,
       flat: v.flat.trim(),
@@ -65,15 +81,19 @@ export function AddressForm({
       area,
       landmark: v.landmark.trim() || undefined,
       howToReach: v.howToReach.trim() || undefined,
-      contact: v.someoneElse ? { name: v.name.trim(), phone: v.phone.replace(/\D/g, '') } : undefined,
+      contact: v.someoneElse ? { name: v.name.trim(), phone: v.phone } : undefined,
     });
   };
 
   return (
-    <Sheet visible={visible} onClose={onClose}>
-      <Text style={styles.title}>Save address details</Text>
-
-      <Text style={styles.label}>Who you are booking for?</Text>
+    <FormSheet
+      visible={visible && !picking}
+      title={initial ? 'Edit address' : 'Save address details'}
+      onClose={onClose}
+      notice={notice}
+      footer={<YellowButton label="Save Address" onPress={save} />}
+    >
+      <Text style={styles.label}>Who are you booking for?</Text>
       <View style={styles.radios}>
         {(['Myself', 'Someone else'] as const).map((who) => {
           const on = (who === 'Someone else') === v.someoneElse;
@@ -85,30 +105,43 @@ export function AddressForm({
               accessibilityState={{ selected: on }}
               style={styles.radio}
             >
-              <View style={[styles.radioDot, on && styles.radioDotOn]}>{on && <View style={styles.radioInner} />}</View>
+              <View style={[styles.dot, on && styles.dotOn]}>{on && <View style={styles.dotInner} />}</View>
               <Text style={styles.radioText}>{who}</Text>
             </Pressable>
           );
         })}
       </View>
+
       {v.someoneElse && (
-        <>
-          <Field
-            label="Receiver’s name *"
+        <View style={styles.receiver}>
+          <View style={styles.receiverHead}>
+            <Text style={styles.receiverTitle}>Receiver details</Text>
+            <Pressable onPress={() => void fromContacts()} hitSlop={8} accessibilityRole="button" style={styles.pick}>
+              <Ionicons name="person-add-outline" size={14} color="#1A5FD0" />
+              <Text style={styles.pickText}>Pick from contacts</Text>
+            </Pressable>
+          </View>
+          <TextInput
             value={v.name}
-            onChange={set('name')}
-            placeholder="Full name"
-            error={tried && !v.name.trim() ? 'Name is required' : undefined}
+            onChangeText={set('name')}
+            placeholder="Receiver’s name"
+            placeholderTextColor={T.faint}
+            autoCapitalize="words"
+            style={[styles.input, tried && v.name.trim().length < 2 && styles.inputError]}
           />
-          <Field
-            label="Receiver’s number *"
-            value={v.phone}
-            onChange={(t) => set('phone')(t.replace(/[^0-9]/g, '').slice(0, 10))}
-            placeholder="10-digit mobile number"
-            keyboardType="phone-pad"
-            error={tried && v.phone.length !== 10 ? 'Enter a 10-digit number' : undefined}
-          />
-        </>
+          <View style={[styles.input, styles.phoneRow, tried && v.phone.length !== 10 && styles.inputError]}>
+            <Text style={styles.code}>+91</Text>
+            <TextInput
+              value={v.phone}
+              onChangeText={(t) => set('phone')(t.replace(/[^0-9]/g, '').slice(0, 10))}
+              placeholder="Receiver’s mobile number"
+              placeholderTextColor={T.faint}
+              keyboardType="phone-pad"
+              style={styles.phoneInput}
+            />
+          </View>
+          <Text style={styles.hint}>Our partner will contact them for this address.</Text>
+        </View>
       )}
 
       <Text style={styles.label}>Save address as *</Text>
@@ -123,7 +156,7 @@ export function AddressForm({
               accessibilityState={{ selected: on }}
               style={[styles.tag, on && styles.tagOn]}
             >
-              <Ionicons name={icon} size={18} color={on ? BLUE : T.ink} />
+              <Ionicons name={icon} size={16} color={on ? '#1A5FD0' : T.ink} />
               <Text style={styles.tagText}>{tag}</Text>
             </Pressable>
           );
@@ -140,7 +173,7 @@ export function AddressForm({
       <Field label="Floor (optional)" value={v.floor} onChange={set('floor')} placeholder="Floor" />
 
       <Text style={styles.label}>Area / Sector / Locality *</Text>
-      <View style={[styles.input, styles.areaBox]}>
+      <View style={[styles.input, styles.areaRow]}>
         <Text style={styles.areaText} numberOfLines={1}>
           {area}
         </Text>
@@ -156,26 +189,26 @@ export function AddressForm({
         placeholder="Nearby landmark"
       />
 
-      <Text style={styles.label}>How to Reach (Instructions) (Optional)</Text>
+      <Text style={styles.label}>How to reach (optional)</Text>
       <View style={[styles.input, styles.reach]}>
         <TextInput
           value={v.howToReach}
           onChangeText={set('howToReach')}
-          placeholder="Add How to Reach (Instructions)"
+          placeholder="e.g. Car is in basement B2, slot 45"
           placeholderTextColor={T.faint}
           style={styles.reachInput}
           multiline
         />
-        <Ionicons name="camera-outline" size={20} color={T.gold} />
-        <View style={styles.mic}>
-          <Ionicons name="mic-outline" size={18} color={T.gold} />
-        </View>
+        <Pressable
+          onPress={() => setNotice('Voice directions — coming soon')}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel="Record directions"
+        >
+          <Ionicons name="mic-outline" size={19} color={T.muted} />
+        </Pressable>
       </View>
-
-      <View style={styles.footer}>
-        <YellowButton label="Save Address" onPress={save} />
-      </View>
-    </Sheet>
+    </FormSheet>
   );
 }
 
@@ -185,14 +218,12 @@ function Field({
   onChange,
   placeholder,
   error,
-  keyboardType,
 }: {
   label: string;
   value: string;
   onChange: (t: string) => void;
   placeholder: string;
   error?: string;
-  keyboardType?: 'phone-pad';
 }) {
   return (
     <View>
@@ -202,7 +233,6 @@ function Field({
         onChangeText={onChange}
         placeholder={placeholder}
         placeholderTextColor={T.faint}
-        keyboardType={keyboardType}
         style={[styles.input, !!error && styles.inputError]}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -211,16 +241,11 @@ function Field({
 }
 
 const styles = StyleSheet.create({
-  title: {
-    fontFamily: fonts.bold,
-    fontSize: 18,
-    color: T.text,
-  },
   label: {
     marginTop: 16,
     marginBottom: 8,
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: 12.5,
     color: '#4B5563',
   },
   radios: {
@@ -233,7 +258,7 @@ const styles = StyleSheet.create({
     gap: 8,
     minHeight: 32,
   },
-  radioDot: {
+  dot: {
     width: 20,
     height: 20,
     borderRadius: 10,
@@ -242,11 +267,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioDotOn: {
+  dotOn: {
     borderColor: T.text,
     borderWidth: 2,
   },
-  radioInner: {
+  dotInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
@@ -257,19 +282,51 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: T.text,
   },
+  receiver: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#F7F8FA',
+    gap: 8,
+  },
+  receiverHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  receiverTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    color: T.text,
+  },
+  pick: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  pickText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12.5,
+    color: '#1A5FD0',
+  },
+  hint: {
+    fontFamily: fonts.regular,
+    fontSize: 11.5,
+    color: T.muted,
+  },
   tags: {
     flexDirection: 'row',
     gap: 10,
   },
   tag: {
-    height: 40,
+    height: 38,
     paddingHorizontal: 14,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E3E5E9',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   tagOn: {
     borderColor: '#9DBBF5',
@@ -277,15 +334,16 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontFamily: fonts.medium,
-    fontSize: 14,
+    fontSize: 13.5,
     color: T.text,
   },
   input: {
-    minHeight: 48,
-    paddingHorizontal: 14,
+    minHeight: 46,
+    paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E3E5E9',
+    backgroundColor: '#FFFFFF',
     fontFamily: fonts.regular,
     fontSize: 14,
     color: T.text,
@@ -294,12 +352,29 @@ const styles = StyleSheet.create({
     borderColor: '#C22F2F',
   },
   error: {
-    marginTop: 6,
+    marginTop: 5,
     fontFamily: fonts.medium,
     fontSize: 11,
     color: '#C22F2F',
   },
-  areaBox: {
+  phoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  code: {
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    color: T.text,
+  },
+  phoneInput: {
+    flex: 1,
+    height: 46,
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: T.text,
+  },
+  areaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -313,13 +388,12 @@ const styles = StyleSheet.create({
   change: {
     fontFamily: fonts.semiBold,
     fontSize: 13,
-    color: BLUE,
+    color: '#1A5FD0',
   },
   reach: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingRight: 6,
   },
   reachInput: {
     flex: 1,
@@ -327,17 +401,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 14,
     color: T.text,
-  },
-  mic: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFF6D6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  footer: {
-    marginTop: 22,
-    marginBottom: 4,
   },
 });

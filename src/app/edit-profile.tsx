@@ -356,13 +356,13 @@ const styles = StyleSheet.create({
     color: ink.text,
   },
   input: {
-    height: 52,
+    height: 48,
     paddingHorizontal: 16,
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: '#DADCE2',
     fontFamily: fonts.semiBold,
-    fontSize: 16,
+    fontSize: 15,
     color: ink.text,
   },
   inputOn: {
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
   },
   lockedText: {
     fontFamily: fonts.semiBold,
-    fontSize: 16,
+    fontSize: 15,
     color: ink.label,
   },
   verified: {

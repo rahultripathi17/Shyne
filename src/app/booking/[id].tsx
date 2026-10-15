@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     fontFamily: fonts.extraBold,
-    fontSize: 17,
+    fontSize: 16,
     color: ink.text,
   },
   heroMeta: {
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   when: {
     flex: 1,
     fontFamily: fonts.extraBold,
-    fontSize: 17,
+    fontSize: 16,
     color: ink.text,
   },
   row: {
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
   },
   amount: {
     fontFamily: fonts.extraBold,
-    fontSize: 17,
+    fontSize: 16,
     color: ink.text,
   },
   stars: {

@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   identity: { alignItems: 'center', paddingHorizontal: 20, paddingTop: 20 },
   nameBlock: { height: 56, marginTop: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
   brand: { fontFamily: fonts.semiBold, fontSize: 13, color: ink.muted },
-  model: { marginTop: 1, fontFamily: fonts.extraBold, fontSize: 24, letterSpacing: -0.5, color: ink.text },
+  model: { marginTop: 1, fontFamily: fonts.extraBold, fontSize: 21, letterSpacing: -0.5, color: ink.text },
   plateSlot: { width: 236, height: 52 },
   platePlaceholder: {
     flex: 1,
@@ -535,7 +535,7 @@ const styles = StyleSheet.create({
   sheetFill: { position: 'absolute', left: 0, right: 0, top: '100%', height: 600, backgroundColor: '#FFFFFF' },
   handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#D6D7DB', alignSelf: 'center', marginTop: 8 },
   sheetHead: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 12 },
-  sheetTitle: { flex: 1, fontFamily: fonts.extraBold, fontSize: 19, letterSpacing: -0.4, color: ink.text },
+  sheetTitle: { flex: 1, fontFamily: fonts.extraBold, fontSize: 17, letterSpacing: -0.4, color: ink.text },
   close: {
     width: 32,
     height: 32,
@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
   removeBtn: { backgroundColor: ink.red },
   removeText: { fontFamily: fonts.bold, fontSize: 15, color: '#FFFFFF' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, paddingBottom: 60 },
-  emptyTitle: { marginTop: 18, fontFamily: fonts.extraBold, fontSize: 20, color: ink.text },
+  emptyTitle: { marginTop: 18, fontFamily: fonts.extraBold, fontSize: 18, color: ink.text },
   emptyText: {
     marginTop: 6,
     fontFamily: fonts.medium,

@@ -12,14 +12,7 @@ type Props = {
 
 export function CroppedImage({ source, frame, crop, flipX }: Props) {
   return (
-    <View
-      pointerEvents="none"
-      style={[
-        styles.frame,
-        frame,
-        flipX && { transform: [{ scaleX: -1 }] },
-      ]}
-    >
+    <View pointerEvents="none" style={[styles.frame, frame, flipX && { transform: [{ scaleX: -1 }] }]}>
       {crop ? (
         <Image
           source={source}

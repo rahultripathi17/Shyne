@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   },
   heading: {
     fontFamily: fonts.extraBold,
-    fontSize: 24,
+    fontSize: 21,
     lineHeight: 30,
     letterSpacing: -0.5,
     color: ink.text,
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
     height: '100%',
     paddingHorizontal: 12,
     fontFamily: fonts.semiBold,
-    fontSize: 17,
+    fontSize: 16,
     letterSpacing: 0.5,
     color: ink.text,
   },

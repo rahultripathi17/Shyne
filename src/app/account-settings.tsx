@@ -157,13 +157,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    height: 54,
+    height: 50,
     paddingHorizontal: 16,
   },
   label: {
     flex: 1,
     fontFamily: fonts.semiBold,
-    fontSize: 15,
+    fontSize: 14.5,
     color: ink.text,
   },
   confirm: {

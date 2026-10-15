@@ -34,16 +34,36 @@ export const ART = {
   accessories: icon(require('../../../assets/home/service-icons-v4/accessories.png')),
   wash: icon(require('../../../assets/home/service-icons-v4/wash.png')),
   garage: icon(require('../../../assets/home/service-icons-v4/garage.png')),
-  challanCar: a(require('../../../assets/home/challan-car.png'), 97, 40.541, { w: 196.67, h: 314.42, x: -11.41, y: -175.46 }),
+  challanCar: a(require('../../../assets/home/challan-car.png'), 97, 40.541, {
+    w: 196.67,
+    h: 314.42,
+    x: -11.41,
+    y: -175.46,
+  }),
   headerCar: a(require('../../../assets/home/header-car.png'), 54, 33, { w: 100, h: 111.93, x: 0, y: -12.12 }),
 };
 
 /** Scales a Figma art frame to fit inside a box, centred horizontally and sitting on the bottom. */
-export function FittedArt({ art, box, align = 'bottom' }: { art: Art; box: { w: number; h: number }; align?: 'bottom' | 'center' }) {
+export function FittedArt({
+  art,
+  box,
+  align = 'bottom',
+}: {
+  art: Art;
+  box: { w: number; h: number };
+  align?: 'bottom' | 'center';
+}) {
   if (art.icon) {
     const size = Math.min(box.w, box.h);
     return (
-      <View style={{ width: box.w, height: box.h, alignItems: 'center', justifyContent: align === 'bottom' ? 'flex-end' : 'center' }}>
+      <View
+        style={{
+          width: box.w,
+          height: box.h,
+          alignItems: 'center',
+          justifyContent: align === 'bottom' ? 'flex-end' : 'center',
+        }}
+      >
         <Image source={art.source} resizeMode="contain" style={{ width: size, height: size }} />
       </View>
     );

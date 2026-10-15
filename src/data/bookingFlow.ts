@@ -275,3 +275,9 @@ export function draftPrice(d: BookingDraft) {
   const total = items.reduce((s, i) => s + i.price, 0);
   return { items, total, mrp: Math.round(total * 1.85) };
 }
+
+/** When the partner should arrive: in 30 minutes for instant, else the picked day and hour. */
+export function serviceStart(d: BookingDraft) {
+  if (d.instant) return Date.now() + 30 * 60 * 1000;
+  return new Date(`${d.date}T${String(d.hour ?? 9).padStart(2, '0')}:00:00`).getTime();
+}

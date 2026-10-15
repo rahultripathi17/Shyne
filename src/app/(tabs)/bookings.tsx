@@ -83,7 +83,12 @@ function BookingCard({
       <StatusStrip label={item.status} tone={item.tone} />
 
       {/* What: service picture, name and type */}
-      <Pressable onPress={() => onAction(item)} style={styles.head} accessibilityRole="button" accessibilityLabel={item.title}>
+      <Pressable
+        onPress={() => onAction(item)}
+        style={styles.head}
+        accessibilityRole="button"
+        accessibilityLabel={item.title}
+      >
         <View style={styles.art}>
           <Image source={art} resizeMode="contain" style={WIDE_ART.has(art) ? styles.artImgWide : styles.artImg} />
         </View>
@@ -125,7 +130,11 @@ function BookingCard({
           </Text>
         </View>
         <View style={styles.infoRow}>
-          <Ionicons name={item.subIsNote ? 'information-circle-outline' : 'location-outline'} size={16} color={ink.muted} />
+          <Ionicons
+            name={item.subIsNote ? 'information-circle-outline' : 'location-outline'}
+            size={16}
+            color={ink.muted}
+          />
           <Text style={styles.infoText} numberOfLines={1}>
             {item.when.sub}
           </Text>
@@ -222,7 +231,12 @@ export default function BookingsScreen() {
             </Pressable>
           </View>
 
-          <ScrollView horizontal {...noBounce} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+          <ScrollView
+            horizontal
+            {...noBounce}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tabs}
+          >
             {VERTICALS.map((v) => {
               const on = filter === v.key;
               return (
@@ -337,12 +351,12 @@ const styles = StyleSheet.create({
   },
   screenTitle: {
     fontFamily: fonts.extraBold,
-    fontSize: 24,
+    fontSize: 20,
     letterSpacing: -0.5,
     color: ink.text,
   },
   help: {
-    height: 38,
+    height: 34,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -439,7 +453,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   card: {
-    borderRadius: 18,
+    borderRadius: 14,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#EBECF0',
@@ -453,30 +467,30 @@ const styles = StyleSheet.create({
   head: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 16,
-    paddingTop: 30,
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingTop: 22,
   },
   art: {
-    width: 72,
-    height: 72,
-    borderRadius: 14,
+    width: 56,
+    height: 56,
+    borderRadius: 12,
     backgroundColor: '#F4F5F7',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   artImg: {
-    width: 60,
-    height: 60,
+    width: 46,
+    height: 46,
   },
   artImgWide: {
-    width: 92,
-    height: 92,
+    width: 72,
+    height: 72,
   },
   headText: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   pill: {
     position: 'absolute',
@@ -486,10 +500,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingLeft: 12,
-    paddingRight: 14,
-    paddingVertical: 6,
-    borderBottomLeftRadius: 14,
+    paddingLeft: 10,
+    paddingRight: 12,
+    paddingVertical: 4,
+    borderBottomLeftRadius: 12,
   },
   pillDot: {
     width: 6,
@@ -498,14 +512,14 @@ const styles = StyleSheet.create({
   },
   pillText: {
     fontFamily: fonts.bold,
-    fontSize: 11.5,
+    fontSize: 11,
   },
   info: {
-    gap: 10,
-    marginHorizontal: 16,
-    marginTop: 14,
-    padding: 12,
-    borderRadius: 12,
+    gap: 8,
+    marginHorizontal: 14,
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 10,
     backgroundColor: '#F7F8FA',
   },
   infoRow: {
@@ -516,32 +530,32 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     fontFamily: fonts.medium,
-    fontSize: 13.5,
+    fontSize: 12.5,
     color: ink.label,
   },
   dateText: {
     flex: 1,
     fontFamily: fonts.bold,
-    fontSize: 14,
+    fontSize: 13,
     color: ink.text,
   },
   title: {
-    fontFamily: fonts.extraBold,
-    fontSize: 18,
-    lineHeight: 23,
-    letterSpacing: -0.3,
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: -0.2,
     color: ink.text,
   },
   typeText: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: 12,
     color: ink.muted,
   },
   // A plain, quiet button: the card's one action.
   cta: {
-    height: 38,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    height: 34,
+    paddingHorizontal: 14,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#D5D7DC',
     backgroundColor: '#FFFFFF',
@@ -549,8 +563,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ctaText: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
+    fontFamily: fonts.semiBold,
+    fontSize: 12.5,
     color: ink.text,
   },
   usage: {
@@ -594,9 +608,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginTop: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    marginTop: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#E6E7EB',
   },
@@ -608,7 +622,7 @@ const styles = StyleSheet.create({
   },
   amount: {
     fontFamily: fonts.extraBold,
-    fontSize: 18,
+    fontSize: 15,
     color: ink.text,
   },
   due: {
@@ -635,7 +649,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     marginTop: 18,
     fontFamily: fonts.extraBold,
-    fontSize: 18,
+    fontSize: 17,
     color: ink.text,
   },
   emptyText: {

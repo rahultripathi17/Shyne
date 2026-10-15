@@ -2,9 +2,7 @@ import * as Location from 'expo-location';
 
 import type { SavedLocation } from '../store/AppStore';
 
-export type DetectResult =
-  | { ok: true; location: SavedLocation }
-  | { ok: false; reason: 'denied' | 'unavailable' };
+export type DetectResult = { ok: true; location: SavedLocation } | { ok: false; reason: 'denied' | 'unavailable' };
 
 /** Asks for location permission, then turns the current position into a one-line address. */
 export async function detectAddress(): Promise<DetectResult> {

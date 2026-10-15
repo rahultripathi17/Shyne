@@ -331,7 +331,8 @@ export default function ProfileScreen() {
                   key={q.key}
                   onPress={() => {
                     if (q.key === 'vehicles') router.push('/vehicles');
-                    else if (q.key === 'points') router.navigate('/rewards');
+                    else if (q.key === 'address') router.push('/address');
+                    else if (q.key === 'points') router.push('/refer/points');
                     else soon(q.label.replace('\n', ' '));
                   }}
                   scaleTo={0.96}
@@ -504,7 +505,7 @@ const styles = StyleSheet.create({
   name: {
     flexShrink: 1,
     fontFamily: fonts.extraBold,
-    fontSize: 22,
+    fontSize: 20,
     lineHeight: 27,
     letterSpacing: -0.6,
   },
@@ -694,13 +695,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    height: 56,
+    height: 50,
     paddingHorizontal: 16,
   },
   menuLabel: {
     flex: 1,
     fontFamily: fonts.semiBold,
-    fontSize: 15,
+    fontSize: 14.5,
     color: ink.text,
   },
   rate: {

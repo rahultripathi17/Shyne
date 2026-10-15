@@ -31,9 +31,9 @@ export const ink = {
 export const SPACE = 14;
 
 export const type = StyleSheet.create({
-  display: { fontFamily: fonts.extraBold, fontSize: 22, lineHeight: 26, letterSpacing: -0.5 },
-  h2: { fontFamily: fonts.extraBold, fontSize: 18, lineHeight: 24, letterSpacing: -0.3 },
-  h3: { fontFamily: fonts.extraBold, fontSize: 17, lineHeight: 22, letterSpacing: -0.3 },
+  display: { fontFamily: fonts.extraBold, fontSize: 20, lineHeight: 26, letterSpacing: -0.5 },
+  h2: { fontFamily: fonts.extraBold, fontSize: 17, lineHeight: 24, letterSpacing: -0.3 },
+  h3: { fontFamily: fonts.extraBold, fontSize: 16, lineHeight: 22, letterSpacing: -0.3 },
   title: { fontFamily: fonts.extraBold, fontSize: 15, lineHeight: 19, letterSpacing: -0.2 },
   body: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
   label: { fontFamily: fonts.bold, fontSize: 11.5, lineHeight: 14 },

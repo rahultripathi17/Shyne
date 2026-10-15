@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
   },
   headTitle: {
     fontFamily: fonts.extraBold,
-    fontSize: 18,
+    fontSize: 17,
     lineHeight: 23,
     letterSpacing: -0.4,
     color: R.text,

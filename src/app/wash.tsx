@@ -3,10 +3,11 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Image, LayoutAnimation, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddressBar } from '../components/booking/AddressBar';
+import { FadeIn } from '../components/home/motion';
 import { PlanSheet, ServiceDetailsSheet, SocietySheet, UpgradeSheet } from '../components/booking/BookingSheets';
 import { fonts, noBounce } from '../components/theme';
 import { Toast, useToast } from '../components/Toast';
@@ -48,7 +49,7 @@ export default function CarServicesScreen() {
     s.base.price + s.addOns.filter((a) => addOnsOf(s).includes(a.id)).reduce((t, a) => t + a.price, 0);
 
   const toggle = (id: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    void Haptics.selectionAsync();
     setOpen((o) => (o === id ? null : id));
   };
 
@@ -111,9 +112,6 @@ export default function CarServicesScreen() {
           </Pressable>
         </View>
         <AddressBar />
-      </View>
-
-      <ScrollView {...noBounce} stickyHeaderIndices={[1]} contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
         <View style={styles.kindWrap}>
           <View style={styles.kinds}>
             {(['car', 'bike'] as const).map((k) => {
@@ -157,7 +155,9 @@ export default function CarServicesScreen() {
             </View>
           </Pressable>
         </View>
+      </View>
 
+      <ScrollView {...noBounce} style={styles.listBg} contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
         <View style={styles.list}>
           {tab === 'regular' &&
             services.map((s) =>
@@ -340,7 +340,7 @@ function ExpandedCard({
         <Ionicons name="chevron-up" size={20} color={T.text} />
       </Pressable>
 
-      <View style={styles.expBody}>
+      <FadeIn style={styles.expBody}>
         <View style={styles.rowBetween}>
           <Text style={styles.make}>Make Your Service</Text>
           <Pressable onPress={onDetails} accessibilityRole="button" style={styles.details}>
@@ -455,7 +455,7 @@ function ExpandedCard({
           <Text style={styles.unlimitedText}>Unlimited {s.kind === 'car' ? 'Car' : 'Bike'} Washes</Text>
           <Ionicons name="arrow-forward" size={18} color={T.text} />
         </Pressable>
-      </View>
+      </FadeIn>
     </View>
   );
 }
@@ -497,12 +497,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   top: {
-    backgroundColor: '#FAFAFA',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ECECEC',
+    backgroundColor: '#FFFFFF',
+    zIndex: 1,
+  },
+  listBg: {
+    flex: 1,
+    backgroundColor: '#F5F6F8',
   },
   header: {
-    minHeight: 56,
+    minHeight: 50,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -511,7 +514,7 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     fontFamily: fonts.semiBold,
-    fontSize: 17,
+    fontSize: 16,
     color: T.text,
   },
   vehicle: {
@@ -526,20 +529,20 @@ const styles = StyleSheet.create({
   },
   vehicleModel: {
     fontFamily: fonts.semiBold,
-    fontSize: 16,
+    fontSize: 14,
     color: T.text,
   },
   vehicleBrand: {
     fontFamily: fonts.medium,
-    fontSize: 12,
+    fontSize: 11,
     color: '#8A94A6',
   },
   kindWrap: {
     paddingHorizontal: 16,
-    paddingTop: 14,
+    paddingTop: 6,
   },
   kinds: {
-    padding: 4,
+    padding: 3,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -553,7 +556,7 @@ const styles = StyleSheet.create({
   },
   kind: {
     flex: 1,
-    height: 42,
+    height: 36,
     borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
@@ -565,14 +568,14 @@ const styles = StyleSheet.create({
   },
   kindText: {
     fontFamily: fonts.medium,
-    fontSize: 15,
+    fontSize: 14,
     color: T.text,
   },
   kindTextOn: {
     color: '#FFFFFF',
   },
   tabs: {
-    marginTop: 8,
+    marginTop: 4,
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
@@ -580,7 +583,7 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    height: 46,
+    height: 42,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -593,7 +596,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontFamily: fonts.regular,
-    fontSize: 14.5,
+    fontSize: 13.5,
     color: '#6B7280',
   },
   tabTextOn: {
@@ -613,8 +616,7 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 16,
-    gap: 16,
-    backgroundColor: '#F5F6F8',
+    gap: 14,
   },
   card: {
     borderRadius: 12,
@@ -628,28 +630,28 @@ const styles = StyleSheet.create({
   },
   cardImg: {
     width: '100%',
-    height: 168,
+    height: 150,
   },
   cardFoot: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
   },
   cardName: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
     color: T.text,
   },
   cardMeta: {
-    marginTop: 4,
+    marginTop: 3,
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: 12.5,
     color: '#6B7280',
   },
   cardPrice: {
     fontFamily: fonts.bold,
-    fontSize: 15,
+    fontSize: 13.5,
     color: T.text,
   },
   cardRatings: {
@@ -746,7 +748,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   expHead: {
-    height: 52,
+    height: 46,
     paddingHorizontal: 16,
     backgroundColor: '#F6F6F6',
     flexDirection: 'row',
@@ -754,8 +756,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   expTitle: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
     color: T.text,
   },
   expBody: {
@@ -767,20 +769,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   make: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
+    fontFamily: fonts.semiBold,
+    fontSize: 14.5,
     color: T.text,
   },
   details: {
-    height: 30,
-    paddingHorizontal: 12,
+    height: 28,
+    paddingHorizontal: 10,
     borderRadius: 6,
     backgroundColor: '#FFE300',
     justifyContent: 'center',
   },
   detailsText: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: 12,
     color: T.text,
   },
   recRow: {
@@ -889,7 +891,7 @@ const styles = StyleSheet.create({
   },
   perDayPrice: {
     fontFamily: fonts.bold,
-    fontSize: 24,
+    fontSize: 21,
     lineHeight: 28,
     color: T.green,
   },
@@ -916,8 +918,8 @@ const styles = StyleSheet.create({
     borderColor: '#E3E3E3',
   },
   pick: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
+    fontFamily: fonts.semiBold,
+    fontSize: 14.5,
     color: T.text,
   },
   plans: {
@@ -957,7 +959,7 @@ const styles = StyleSheet.create({
   },
   planName: {
     fontFamily: fonts.medium,
-    fontSize: 15,
+    fontSize: 14,
     color: T.text,
   },
   planPrice: {
@@ -1022,7 +1024,7 @@ const styles = StyleSheet.create({
   },
   unlimited: {
     marginTop: 14,
-    height: 50,
+    height: 44,
     paddingHorizontal: 14,
     borderRadius: 8,
     backgroundColor: '#FFF3BF',
@@ -1031,8 +1033,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   unlimitedText: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
     color: T.text,
   },
 });

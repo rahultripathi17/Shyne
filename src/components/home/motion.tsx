@@ -72,9 +72,7 @@ export function FadeIn({ delay = 0, children, style }: FadeInProps) {
         style,
         {
           opacity: progress,
-          transform: [
-            { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
-          ],
+          transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
         },
       ]}
     >

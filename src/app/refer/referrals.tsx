@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.extraBold,
-    fontSize: 18,
+    fontSize: 17,
     letterSpacing: -0.3,
     color: R.text,
   },

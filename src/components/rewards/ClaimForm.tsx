@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppStore } from '../../store/AppStore';
+import { useKeyboardHeight } from '../booking/FormSheet';
 import { fonts } from '../theme';
 import { R, YellowButton } from './RewardsKit';
 
@@ -23,11 +24,30 @@ import { R, YellowButton } from './RewardsKit';
 /** Bottom sheet: scrim, grabber, keyboard-aware, scrolls when tall. */
 export function Sheet({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
   const insets = useSafeAreaInsets();
+  const keyboard = useKeyboardHeight();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + 14 }]}>
+      <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+      {/* White behind the keyboard, so the strip the sheet rises by never shows the screen underneath. */}
+      {keyboard > 0 && (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: keyboard + 40,
+            backgroundColor: '#FFFFFF',
+          }}
+        />
+      )}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        pointerEvents="box-none"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={[styles.sheet, { paddingBottom: keyboard > 0 ? 14 : insets.bottom + 14 }]}>
           <View style={styles.grabber} />
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false}>
             {children}
@@ -211,7 +231,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.extraBold,
-    fontSize: 19,
+    fontSize: 17,
     letterSpacing: -0.4,
     color: R.text,
   },

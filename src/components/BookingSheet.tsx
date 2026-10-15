@@ -1,6 +1,16 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useState } from 'react';
-import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {
+  Animated,
+  Easing,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { type BookingItem, journeyStep } from '../data/bookingsDemo';
@@ -70,7 +80,13 @@ export function BookingSheet({ item, onClose, onHelp }: Props) {
                 </Text>
               </View>
             </View>
-            <Pressable onPress={onClose} hitSlop={8} style={styles.close} accessibilityRole="button" accessibilityLabel="Close">
+            <Pressable
+              onPress={onClose}
+              hitSlop={8}
+              style={styles.close}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
               <Ionicons name="close" size={18} color={ink.text} />
             </Pressable>
           </View>
@@ -90,7 +106,9 @@ export function BookingSheet({ item, onClose, onHelp }: Props) {
             {shown.alert ? (
               <View style={[styles.note, styles.noteRed]}>
                 <Text style={[styles.noteTitle, { color: '#C22F2F' }]}>{shown.alert}</Text>
-                <Text style={styles.noteBody}>We’re on it. You can call the professional or reach our team any time.</Text>
+                <Text style={styles.noteBody}>
+                  We’re on it. You can call the professional or reach our team any time.
+                </Text>
               </View>
             ) : null}
           </ScrollView>
@@ -155,7 +173,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.extraBold,
-    fontSize: 19,
+    fontSize: 17,
     lineHeight: 24,
     letterSpacing: -0.3,
     color: ink.text,

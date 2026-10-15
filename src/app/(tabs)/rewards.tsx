@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.extraBold,
-    fontSize: 21,
+    fontSize: 19,
     letterSpacing: -0.5,
     color: R.onNight,
   },
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
   },
   prize: {
     fontFamily: fonts.extraBold,
-    fontSize: 19,
+    fontSize: 17,
     letterSpacing: -0.3,
     color: R.onNight,
   },
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     marginBottom: 10,
     fontFamily: fonts.extraBold,
-    fontSize: 17,
+    fontSize: 16,
     letterSpacing: -0.4,
     color: R.text,
   },

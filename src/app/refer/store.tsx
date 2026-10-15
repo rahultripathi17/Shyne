@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     fontFamily: fonts.extraBold,
-    fontSize: 18,
+    fontSize: 17,
     letterSpacing: -0.3,
     color: R.text,
   },

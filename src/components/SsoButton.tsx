@@ -28,7 +28,12 @@ export function SsoButton({ provider, verb = 'Continue with', onPress, compact }
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.btn, compact && styles.compact, apple ? styles.apple : styles.google, pressed && { opacity: 0.85 }]}
+      style={({ pressed }) => [
+        styles.btn,
+        compact && styles.compact,
+        apple ? styles.apple : styles.google,
+        pressed && { opacity: 0.85 },
+      ]}
       accessibilityRole="button"
       accessibilityLabel={`${verb} ${apple ? 'Apple' : 'Google'}`}
     >

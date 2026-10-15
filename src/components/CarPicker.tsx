@@ -51,7 +51,15 @@ type Props = {
 
 const brandOf = (slug: string) => BRANDS.find((b) => b.slug === slug);
 
-export function CarPicker({ onDone, onExit, title, topInset, bottomInset, saveLabel = 'Save vehicle', accessory }: Props) {
+export function CarPicker({
+  onDone,
+  onExit,
+  title,
+  topInset,
+  bottomInset,
+  saveLabel = 'Save vehicle',
+  accessory,
+}: Props) {
   const { width } = useWindowDimensions();
   // Four equal brand columns, sized from the grid's measured width (falls back to the screen width).
   const [gridW, setGridW] = useState(width - 32);
@@ -196,7 +204,11 @@ export function CarPicker({ onDone, onExit, title, topInset, bottomInset, saveLa
         {bar}
         {accessory}
         <View style={styles.searchWrap}>{searchBar('Search car name or brand')}</View>
-        <ScrollView {...noBounce} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.pad, { paddingBottom: bottomInset + 24 }]}>
+        <ScrollView
+          {...noBounce}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[styles.pad, { paddingBottom: bottomInset + 24 }]}
+        >
           {q ? (
             <>
               {brandMatches.length > 0 && (
@@ -280,7 +292,11 @@ export function CarPicker({ onDone, onExit, title, topInset, bottomInset, saveLa
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       {bar}
-      <ScrollView {...noBounce} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.pad, { paddingBottom: 24 }]}>
+      <ScrollView
+        {...noBounce}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[styles.pad, { paddingBottom: 24 }]}
+      >
         {step.kind === 'details' ? (
           <FadeIn style={styles.stage}>
             <Image source={MODEL_IMAGES[step.model.image]} resizeMode="contain" style={styles.stageImg} />
@@ -305,7 +321,11 @@ export function CarPicker({ onDone, onExit, title, topInset, bottomInset, saveLa
             <Text style={styles.label}>Size</Text>
             <View style={styles.sizeRow}>
               {SIZES.map((s) => (
-                <Pressable key={s} onPress={() => setSize(s)} style={[styles.sizeChip, size === s && styles.sizeChipOn]}>
+                <Pressable
+                  key={s}
+                  onPress={() => setSize(s)}
+                  style={[styles.sizeChip, size === s && styles.sizeChipOn]}
+                >
                   <Text style={[styles.sizeText, size === s && styles.sizeTextOn]}>{s}</Text>
                 </Pressable>
               ))}
@@ -478,7 +498,7 @@ const styles = StyleSheet.create({
   },
   stageName: {
     fontFamily: fonts.extraBold,
-    fontSize: 24,
+    fontSize: 21,
     letterSpacing: -0.5,
     color: ink.text,
   },

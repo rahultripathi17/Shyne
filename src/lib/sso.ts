@@ -6,9 +6,7 @@ export const SSO_PROVIDER: SsoProvider = Platform.OS === 'ios' ? 'apple' : 'goog
 export const SSO_PROVIDERS: SsoProvider[] = Platform.OS === 'ios' ? ['google', 'apple'] : ['google'];
 export const SSO_LABEL: Record<SsoProvider, string> = { apple: 'Apple', google: 'Google' };
 
-export type SsoResult =
-  | { ok: true; name: string; email: string }
-  | { ok: false; reason: 'unavailable' };
+export type SsoResult = { ok: true; name: string; email: string } | { ok: false; reason: 'unavailable' };
 
 const DEMO_ACCOUNTS: Record<SsoProvider, { name: string; email: string }> = {
   google: { name: 'Rahul Tripathi', email: 'rahultripathixx@gmail.com' },

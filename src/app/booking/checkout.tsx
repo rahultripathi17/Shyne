@@ -2,22 +2,26 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddressRow } from '../../components/booking/AddressBar';
-import { CaretakerSheet, PolicySheet } from '../../components/booking/BookingSheets';
+import { FormSheet } from '../../components/booking/FormSheet';
+import { ContactCard, ContactSheet, useContactOptions } from '../../components/booking/ServiceContact';
+import { PolicySheet } from '../../components/booking/BookingSheets';
 import { formatPlate } from '../../components/PlateField';
 import { Sheet } from '../../components/rewards/ClaimForm';
 import { fonts, noBounce } from '../../components/theme';
 import { Toast, useToast } from '../../components/Toast';
 import { TopBar } from '../../components/TopBar';
 import { SavedBand, TipCard } from '../../components/tracking/ServiceTracking';
+import { YellowButton } from '../../components/tracking/TrackingSheets';
 import { T } from '../../components/tracking/trackTheme';
 import { VehiclePhoto } from '../../components/VehiclePhoto';
 import {
   BLACK,
   draftPrice,
+  serviceStart,
   HOORA_POINTS,
   isValidPlate,
   MULTI_VEHICLE,
@@ -27,8 +31,9 @@ import {
   useDraft,
   washService,
 } from '../../data/bookingFlow';
-import { notifyBookingPlaced } from '../../lib/notifications';
-import { useAppStore } from '../../store/AppStore';
+import { setPendingBooking, getPendingBooking, type PendingBooking } from '../../data/pendingBooking';
+import { usePlaceBooking } from '../../lib/placeBooking';
+import { addressLine, useAppStore } from '../../store/AppStore';
 
 // Checkout (Figma "OD booking - checkout" 11978:4509): review, carcare deal, coupons and points,
 // who the partner should contact, more vehicles, tip, bill with Hoora Black, policy, and pay.
@@ -40,7 +45,8 @@ export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const draft = useDraft();
-  const { selectedCar, name, phone, location, blackMember, notifPrefs, addBooking, updateCar } = useAppStore();
+  const { selectedCar, location, addresses = [], blackMember, updateCar } = useAppStore();
+  const place = usePlaceBooking();
   const svc = washService(draft.serviceId);
   const price = draftPrice(draft);
 
@@ -50,10 +56,16 @@ export default function CheckoutScreen() {
   const [black, setBlack] = useState(false);
   const [plate, setPlate] = useState(selectedCar?.plate ?? '');
   const [tried, setTried] = useState(false);
-  const [contact, setContact] = useState({ name: name ?? 'You', phone: (phone ?? '').replace(/\D/g, '').slice(-10) });
-  const [sheet, setSheet] = useState<'contact' | 'policy' | 'bill' | null>(null);
+  // An address saved "for someone else" carries the receiver; they're the default contact.
+  const savedAddress = addresses.find(
+    (a) => location && addressLine(a) === location.address && a.tag === location.label,
+  );
+  const receiver = savedAddress?.contact;
+  const contactOptions = useContactOptions(receiver);
+  const [contactId, setContactId] = useState(receiver ? 'receiver' : 'me');
+  const contact = contactOptions.find((c) => c.id === contactId) ?? contactOptions[0];
+  const [sheet, setSheet] = useState<'policy' | 'bill' | 'contact' | 'later' | null>(null);
   const [showAll, setShowAll] = useState(false);
-  const [paying, setPaying] = useState<'now' | 'later' | null>(null);
   const [left, setLeft] = useState(OFFER_SECONDS);
   const [today] = useState(() => new Date());
 
@@ -102,16 +114,13 @@ export default function CheckoutScreen() {
       router.push('/address');
       return;
     }
-    setPaying(mode);
-    setTimeout(() => {
-      if (formatPlate(plate) !== selectedCar.plate) updateCar(selectedCar.id, { plate: formatPlate(plate) });
-      const start = draft.instant
-        ? new Date(Date.now() + 30 * 60 * 1000)
-        : new Date(`${draft.date}T${String(draft.hour ?? 9).padStart(2, '0')}:00:00`);
-      const iso = draft.instant ? days[0].iso : (draft.date ?? days[0].iso);
-      const slot = draft.instant ? 'In 30 mins' : slotRange(draft.hour ?? 9);
-      const title = draft.plan === 'package' ? main.name : svc.name;
-      const id = addBooking({
+    if (formatPlate(plate) !== selectedCar.plate) updateCar(selectedCar.id, { plate: formatPlate(plate) });
+    const start = serviceStart(draft);
+    const iso = draft.instant ? days[0].iso : (draft.date ?? days[0].iso);
+    const slot = draft.instant ? 'In 30 mins' : slotRange(draft.hour ?? 9);
+    const title = draft.plan === 'package' ? main.name : svc.name;
+    const pending: PendingBooking = {
+      booking: {
         serviceId: svc.id,
         title,
         car: { ...selectedCar, plate: formatPlate(plate) },
@@ -120,23 +129,29 @@ export default function CheckoutScreen() {
         address: `${location.label} - ${location.address}`,
         addOnIds: draft.addOns,
         total: payable,
-      });
-      void notifyBookingPlaced(
-        {
-          bookingId: id,
-          service: title,
-          vehicle: [selectedCar.brandName, selectedCar.model].filter(Boolean).join(' '),
-          expert: 'Your expert',
-          when: draft.instant ? 'in 30 minutes' : `${day?.short ?? 'today'} at ${slot}`,
-          slot,
-          amount: payable,
+        bookedFor: receiver,
+        contact: {
+          name: contact.name,
+          phone: contact.phone,
+          role: contact.id === 'me' ? 'You' : contact.id === 'receiver' ? 'Booked for' : (contact.tag ?? 'Contact'),
         },
-        start,
-        notifPrefs,
-      );
-      setPaying(null);
-      router.replace({ pathname: '/booking/confirmed', params: { id, saved: String(saved) } });
-    }, 900);
+      },
+      notif: {
+        service: title,
+        vehicle: [selectedCar.brandName, selectedCar.model].filter(Boolean).join(' '),
+        expert: 'Your expert',
+        when: draft.instant ? 'in 30 minutes' : `${day?.short ?? 'today'} at ${slot}`,
+        slot,
+        amount: payable,
+      },
+      start,
+      payable,
+      saved,
+      kind: draft.plan === 'package' ? 'Package Booking' : 'Wash Booking',
+    };
+    setPendingBooking(pending);
+    if (mode === 'now') router.push('/booking/pay');
+    else setSheet('later');
   };
 
   return (
@@ -280,18 +295,16 @@ export default function CheckoutScreen() {
             />
           </View>
           {tried && !plateOk && <Text style={styles.err}>Enter a valid vehicle number (e.g. MH02AB1234)</Text>}
-          <Text style={styles.label}>Contact Number</Text>
-          <Pressable onPress={() => setSheet('contact')} accessibilityRole="button" style={styles.contact}>
-            <Text style={styles.contactText} numberOfLines={1}>
-              {contact.name}
-              {contact.phone ? `, +91-${contact.phone}` : ''}
-            </Text>
-            <Ionicons name="chevron-forward" size={18} color={T.ink} />
-          </Pressable>
-          <View style={styles.hint}>
-            <Ionicons name="information-circle-outline" size={14} color={T.muted} />
-            <Text style={styles.hintText}>Add this if someone else will coordinate the service.</Text>
-          </View>
+          {receiver ? (
+            <View style={styles.forRow}>
+              <Ionicons name="people-outline" size={15} color={T.ink} />
+              <Text style={styles.forText}>
+                Booking for <Text style={styles.bold}>{receiver.name}</Text> (from your saved address)
+              </Text>
+            </View>
+          ) : null}
+          <Text style={styles.label}>Contact for this service</Text>
+          <ContactCard contact={contact} onChange={() => setSheet('contact')} />
         </Block>
 
         {/* More vehicles */}
@@ -384,6 +397,42 @@ export default function CheckoutScreen() {
           </View>
         </View>
 
+        <Block title="Review before you pay">
+          {[
+            { icon: 'water-outline' as const, label: 'Service', value: main.name },
+            {
+              icon: 'car-outline' as const,
+              label: 'Vehicle',
+              value: selectedCar
+                ? `${[selectedCar.brandName, selectedCar.model].filter(Boolean).join(' ') || 'My Bike'}${
+                    plateOk ? ` · ${formatPlate(plate)}` : ''
+                  }`
+                : 'Add your vehicle',
+            },
+            { icon: 'time-outline' as const, label: 'When', value: when },
+            {
+              icon: 'location-outline' as const,
+              label: 'Where',
+              value: location ? `${location.label} - ${location.address}` : 'Add an address',
+            },
+            {
+              icon: 'call-outline' as const,
+              label: 'Contact',
+              value: `${contact.id === 'me' ? 'You' : contact.name}${
+                contact.id !== 'me' && contact.tag ? ` (${contact.tag})` : ''
+              } · +91 ${contact.phone}`,
+            },
+          ].map((r, i) => (
+            <View key={r.label} style={[styles.reviewLine, i > 0 && styles.reviewGap]}>
+              <Ionicons name={r.icon} size={15} color={T.muted} />
+              <Text style={styles.reviewLabel}>{r.label}</Text>
+              <Text style={styles.reviewValue} numberOfLines={2}>
+                {r.value}
+              </Text>
+            </View>
+          ))}
+        </Block>
+
         <Block title="Cancellation / Reschedule Policy">
           <Text style={styles.small}>
             ₹99 cancellation fee applies. Free cancellations for Hoora Black users. Rescheduling terms apply
@@ -411,35 +460,73 @@ export default function CheckoutScreen() {
           </Pressable>
           <Pressable
             onPress={() => pay('later')}
-            disabled={!!paying}
             accessibilityRole="button"
             style={({ pressed }) => [styles.later, pressed && { opacity: 0.7 }]}
           >
-            {paying === 'later' ? (
-              <ActivityIndicator color={T.text} />
-            ) : (
-              <Text style={styles.laterText}>Pay Later</Text>
-            )}
+            <Text style={styles.laterText}>Pay Later</Text>
           </Pressable>
-          <Pressable onPress={() => pay('now')} disabled={!!paying} accessibilityRole="button" style={styles.nowWrap}>
+          <Pressable
+            onPress={() => pay('now')}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.nowWrap, pressed && { opacity: 0.85 }]}
+          >
             <LinearGradient colors={T.yellow} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.now}>
-              {paying === 'now' ? <ActivityIndicator color={T.text} /> : <Text style={styles.nowText}>Pay Now</Text>}
+              <Text style={styles.nowText}>Pay Now</Text>
             </LinearGradient>
           </Pressable>
         </View>
       </View>
 
-      <CaretakerSheet
-        key={`${contact.name}-${contact.phone}`}
+      <ContactSheet
         visible={sheet === 'contact'}
-        name={contact.name}
-        phone={contact.phone}
+        options={contactOptions}
+        selected={contact.id}
         onClose={() => setSheet(null)}
-        onSave={(n, p) => {
-          setContact({ name: n, phone: p });
+        onSelect={(id) => {
+          setContactId(id);
           setSheet(null);
         }}
       />
+
+      <FormSheet
+        visible={sheet === 'later'}
+        title="Pay after your wash"
+        subtitle={`Book now and pay ${rupees(payable)} once the service is done.`}
+        onClose={() => setSheet(null)}
+        footer={
+          <YellowButton
+            label="Confirm booking"
+            onPress={() => {
+              const pending = getPendingBooking();
+              setSheet(null);
+              if (pending) place(pending, { later: true });
+            }}
+          />
+        }
+      >
+        <View style={styles.laterPoints}>
+          {[
+            'No advance payment needed',
+            'Pay by UPI, card or cash after the wash',
+            'Same price and offers as Pay Now',
+          ].map((t) => (
+            <View key={t} style={styles.laterPoint}>
+              <Ionicons name="checkmark-circle" size={16} color={T.green} />
+              <Text style={styles.laterPointText}>{t}</Text>
+            </View>
+          ))}
+        </View>
+        <Pressable
+          onPress={() => {
+            setSheet(null);
+            router.push('/booking/pay');
+          }}
+          accessibilityRole="button"
+          style={styles.laterAlt}
+        >
+          <Text style={styles.laterAltText}>Pay now instead</Text>
+        </Pressable>
+      </FormSheet>
       <PolicySheet
         visible={sheet === 'policy'}
         onClose={() => setSheet(null)}
@@ -580,7 +667,7 @@ const styles = StyleSheet.create({
   },
   dealTitle: {
     fontFamily: fonts.bold,
-    fontSize: 20,
+    fontSize: 18,
     color: T.text,
   },
   special: {
@@ -823,7 +910,7 @@ const styles = StyleSheet.create({
   },
   saveWord: {
     fontFamily: fonts.extraBold,
-    fontSize: 18,
+    fontSize: 17,
     color: '#FFE300',
   },
   multiSub: {
@@ -932,7 +1019,7 @@ const styles = StyleSheet.create({
   },
   billPrice: {
     fontFamily: fonts.semiBold,
-    fontSize: 18,
+    fontSize: 17,
     color: T.text,
   },
   savedText: {
@@ -1092,10 +1179,117 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: T.text,
   },
+  forRow: {
+    marginTop: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#F7F8FA',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  forText: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 12.5,
+    color: T.ink,
+  },
+  confirmCard: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#F7F7F8',
+  },
+  confirmHead: {
+    marginTop: 18,
+    marginBottom: -4,
+    fontFamily: fonts.semiBold,
+    fontSize: 13.5,
+    color: T.text,
+  },
+  reviewGap: {
+    marginTop: 10,
+  },
+  confirmFoot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  confirmAmount: {
+    fontFamily: fonts.semiBold,
+    fontSize: 17,
+    color: T.text,
+  },
+  confirmWhen: {
+    fontFamily: fonts.regular,
+    fontSize: 11.5,
+    color: T.muted,
+  },
+  reviewLine: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  reviewLabel: {
+    width: 92,
+    fontFamily: fonts.regular,
+    fontSize: 12.5,
+    color: T.muted,
+  },
+  reviewValue: {
+    flex: 1,
+    fontFamily: fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: T.text,
+  },
+  laterIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginBottom: 12,
+    backgroundColor: '#FFF1D6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  laterBody: {
+    marginTop: -4,
+    fontFamily: fonts.regular,
+    fontSize: 13.5,
+    lineHeight: 20,
+    color: T.ink,
+  },
+  laterPoints: {
+    marginTop: 14,
+    gap: 10,
+  },
+  laterPoint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  laterPointText: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    color: T.text,
+  },
+  laterCta: {
+    marginTop: 20,
+  },
+  laterAlt: {
+    alignSelf: 'center',
+    paddingVertical: 14,
+  },
+  laterAltText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13.5,
+    color: '#1A5FD0',
+  },
   sheetTitle: {
     marginBottom: 12,
     fontFamily: fonts.bold,
-    fontSize: 18,
+    fontSize: 17,
     color: T.text,
   },
   billRow: {

@@ -44,7 +44,14 @@ export function JourneyTimeline({ item, showTitle = true }: { item: BookingItem;
         return (
           <View key={step.title} style={styles.step}>
             <View style={styles.rail}>
-              <View style={[styles.marker, done && styles.markerDone, now && styles.markerNow, terminal && styles.markerIssue]}>
+              <View
+                style={[
+                  styles.marker,
+                  done && styles.markerDone,
+                  now && styles.markerNow,
+                  terminal && styles.markerIssue,
+                ]}
+              >
                 {done ? (
                   <Ionicons name="checkmark" size={13} color="#FFFFFF" />
                 ) : terminal ? (

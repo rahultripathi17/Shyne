@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.extraBold,
-    fontSize: 24,
+    fontSize: 21,
     letterSpacing: -0.5,
     color: ink.text,
   },

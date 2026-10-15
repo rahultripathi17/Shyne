@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { fonts } from '../theme';
 import { ART, type Art, FittedArt } from './artwork';
-import { ink, SPACE } from './homeTheme';
+import { ink } from './homeTheme';
 import { PressableScale } from './motion';
 
 export type CategoryId =
@@ -22,72 +22,40 @@ export type CategoryId =
   | 'used-cars'
   | 'dealers';
 
-// ——— Main categories: wash on its own row, then garage and accessories side by side ———
+// ——— The three main services, side by side (one row, equal weight) ———
+
+const MAIN: { id: CategoryId; title: string; sub: string; art: Art }[] = [
+  { id: 'wash', title: 'Car & Bike Wash', sub: 'At your doorstep', art: ART.wash },
+  { id: 'garage', title: 'Garage Service', sub: 'Pickup & drop', art: ART.garage },
+  { id: 'accessories', title: 'Products', sub: 'Care kits & more', art: ART.accessories },
+];
 
 export function MainCategories({ width, onPress }: { width: number; onPress: (id: CategoryId) => void }) {
-  const gap = 12;
-  const halfW = (width - gap) / 2;
-  const washArtW = Math.round(width * 0.44);
+  const gap = 10;
+  const tileW = (width - gap * 2) / 3;
 
   return (
-    <View style={{ gap }}>
-      <PressableScale
-        onPress={() => onPress('wash')}
-        scaleTo={0.98}
-        style={styles.wash}
-        accessibilityLabel="Car and bike wash"
-      >
-        <View style={styles.washText}>
-          <Text style={styles.washTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
-            Car & Bike Wash
+    <View style={[styles.duo, { gap }]}>
+      {MAIN.map((m) => (
+        <PressableScale
+          key={m.id}
+          onPress={() => onPress(m.id)}
+          scaleTo={0.97}
+          style={[styles.main, { width: tileW }]}
+          accessibilityLabel={m.title}
+        >
+          <View style={styles.mainArt}>
+            <FittedArt art={m.art} box={{ w: tileW - 20, h: 58 }} align="center" />
+          </View>
+          <Text style={styles.mainTitle} numberOfLines={2}>
+            {m.title}
           </Text>
           <Text style={styles.sub} numberOfLines={1}>
-            At your doorstep
+            {m.sub}
           </Text>
-        </View>
-        <FittedArt art={ART.wash} box={{ w: washArtW, h: 92 }} align="center" />
-      </PressableScale>
-
-      <View style={[styles.duo, { gap }]}>
-        <SmallCard
-          title={'Garage\nService'}
-          sub="Free pickup & drop"
-          art={ART.garage}
-          width={halfW}
-          onPress={() => onPress('garage')}
-        />
-        <SmallCard
-          title={'Products &\nAccessories'}
-          sub="Care kits & add-ons"
-          art={ART.accessories}
-          width={halfW}
-          onPress={() => onPress('accessories')}
-        />
-      </View>
+        </PressableScale>
+      ))}
     </View>
-  );
-}
-
-/** Half-width card: name and one line up top, the picture filling the rest. */
-function SmallCard(props: { title: string; sub: string; art: Art; width: number; onPress: () => void }) {
-  const { title, sub, art, width, onPress } = props;
-  return (
-    <PressableScale
-      onPress={onPress}
-      scaleTo={0.97}
-      style={[styles.small, { width }]}
-      accessibilityLabel={title.replace('\n', ' ')}
-    >
-      <Text style={styles.smallTitle} numberOfLines={2}>
-        {title}
-      </Text>
-      <Text style={styles.sub} numberOfLines={1}>
-        {sub}
-      </Text>
-      <View style={styles.smallArt}>
-        <FittedArt art={art} box={{ w: width - 28, h: 72 }} align="center" />
-      </View>
-    </PressableScale>
   );
 }
 
@@ -127,15 +95,16 @@ export const GROUPS: Group[] = [
 ];
 
 export function AllServices({ width, onPress }: { width: number; onPress: (id: CategoryId) => void }) {
-  const inner = width - 28; // panel padding
+  const inner = width - 24; // panel padding
   const colW = inner / 4;
-  const art = { w: Math.min(64, colW - 12), h: 46 };
+  const art = { w: Math.min(48, colW - 20), h: 36 };
 
-  // One box per group (PhonePe style): title inside, four services below, no divider lines.
+  // One panel, three short groups: label, then four services. Hairlines between groups.
   return (
-    <View style={{ gap: SPACE }}>
-      {GROUPS.map((g) => (
-        <View key={g.title} style={styles.panel}>
+    <View style={styles.panel}>
+      <Text style={styles.panelTitle}>All services</Text>
+      {GROUPS.map((g, gi) => (
+        <View key={g.title} style={gi > 0 && styles.groupLine}>
           <Text style={styles.groupTitle}>{g.title}</Text>
           <View style={styles.row}>
             {g.tiles.map((t) => (
@@ -168,75 +137,67 @@ export function AllServices({ width, onPress }: { width: number; onPress: (id: C
 
 const card = {
   backgroundColor: ink.card,
-  borderRadius: 20,
+  borderRadius: 16,
   borderWidth: 1,
   borderColor: '#ECEDF1',
 };
 
 const styles = StyleSheet.create({
-  // Art sits straight on the white cards, no box behind it.
-  wash: {
-    ...card,
-    height: 112,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 18,
-    paddingRight: 10,
-    overflow: 'hidden',
-  },
-  washText: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  washTitle: {
-    fontFamily: fonts.extraBold,
-    fontSize: 20,
-    lineHeight: 25,
-    letterSpacing: -0.4,
-    color: ink.text,
-  },
-  sub: {
-    marginTop: 3,
-    fontFamily: fonts.medium,
-    fontSize: 12.5,
-    lineHeight: 17,
-    color: ink.muted,
-  },
   duo: {
     flexDirection: 'row',
   },
-  small: {
+  // Art sits straight on the white tiles, no box behind it.
+  main: {
     ...card,
-    height: 172,
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    overflow: 'hidden',
+    paddingHorizontal: 10,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
-  smallTitle: {
-    fontFamily: fonts.extraBold,
-    fontSize: 16,
-    lineHeight: 20,
-    letterSpacing: -0.3,
-    color: ink.text,
-  },
-  smallArt: {
-    flex: 1,
+  mainArt: {
+    height: 62,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingBottom: 4,
+    marginBottom: 8,
+  },
+  mainTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13.5,
+    lineHeight: 17,
+    letterSpacing: -0.2,
+    color: ink.text,
+  },
+  sub: {
+    marginTop: 2,
+    fontFamily: fonts.medium,
+    fontSize: 11,
+    lineHeight: 15,
+    color: ink.muted,
   },
   panel: {
     ...card,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingTop: 14,
-    paddingBottom: 6,
+    paddingBottom: 4,
   },
-  groupTitle: {
-    fontFamily: fonts.extraBold,
+  panelTitle: {
+    marginLeft: 2,
+    marginBottom: 10,
+    fontFamily: fonts.semiBold,
     fontSize: 15,
     letterSpacing: -0.2,
     color: ink.text,
-    marginBottom: 14,
+  },
+  groupLine: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E6E7EB',
+    paddingTop: 10,
+  },
+  groupTitle: {
+    marginLeft: 2,
+    marginBottom: 8,
+    fontFamily: fonts.medium,
+    fontSize: 11.5,
+    color: ink.muted,
   },
   row: {
     flexDirection: 'row',
@@ -246,8 +207,8 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   artWrap: {
-    width: 64,
-    height: 52,
+    width: 48,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -268,11 +229,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   tileLabel: {
-    marginTop: 6,
-    minHeight: 30,
-    fontFamily: fonts.semiBold,
-    fontSize: 12,
-    lineHeight: 15,
+    marginTop: 5,
+    minHeight: 28,
+    fontFamily: fonts.medium,
+    fontSize: 11.5,
+    lineHeight: 14,
     color: ink.label,
     textAlign: 'center',
   },

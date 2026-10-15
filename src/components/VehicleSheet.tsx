@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 12,
   },
-  title: { flex: 1, fontFamily: fonts.extraBold, fontSize: 19, letterSpacing: -0.4, color: ink.text },
+  title: { flex: 1, fontFamily: fonts.extraBold, fontSize: 17, letterSpacing: -0.4, color: ink.text },
   close: {
     width: 32,
     height: 32,

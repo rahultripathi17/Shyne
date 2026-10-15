@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.bold,
-    fontSize: 18,
+    fontSize: 17,
     color: T.ink,
   },
   sub: {

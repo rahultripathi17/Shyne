@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   },
   digit: {
     fontFamily: fonts.extraBold,
-    fontSize: 26,
+    fontSize: 22,
     color: ink.text,
   },
   hidden: {

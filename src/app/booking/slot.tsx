@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   },
   q: {
     fontFamily: fonts.medium,
-    fontSize: 17,
+    fontSize: 16,
     color: T.text,
   },
   card: {

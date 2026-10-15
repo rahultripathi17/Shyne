@@ -15,13 +15,7 @@ type Props = {
 export function VehicleIcon({ vehicle, size, color = '#202020' }: Props) {
   const logo = vehicle?.type === 'car' ? BRAND_LOGOS[vehicle.brand] : undefined;
   if (logo) {
-    return (
-      <Image
-        source={logo}
-        resizeMode="contain"
-        style={[styles.logo, { width: size, height: size * 0.625 }]}
-      />
-    );
+    return <Image source={logo} resizeMode="contain" style={[styles.logo, { width: size, height: size * 0.625 }]} />;
   }
   return (
     <MaterialCommunityIcons

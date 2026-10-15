@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   name: {
     marginTop: 4,
     fontFamily: fonts.extraBold,
-    fontSize: 20,
+    fontSize: 18,
     letterSpacing: -0.4,
     color: R.text,
   },
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   successTitle: {
     marginTop: 10,
     fontFamily: fonts.extraBold,
-    fontSize: 24,
+    fontSize: 21,
     letterSpacing: -0.6,
     color: R.text,
   },

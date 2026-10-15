@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   },
   barTitle: {
     fontFamily: fonts.extraBold,
-    fontSize: 18,
+    fontSize: 17,
     letterSpacing: -0.3,
     color: R.onNight,
   },
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   },
   heading: {
     fontFamily: fonts.extraBold,
-    fontSize: 18,
+    fontSize: 17,
     letterSpacing: -0.4,
     color: R.text,
   },

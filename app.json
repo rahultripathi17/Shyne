@@ -62,6 +62,12 @@
           "icon": "./assets/brand/notification-icon.png",
           "color": "#FFE300"
         }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Hoora uses your contacts so you can pick who receives the service or who our partner should call."
+        }
       ]
     ],
     "extra": {

@@ -50,7 +50,7 @@ export default function HomeScreen() {
   const bottomSpace = useTabBarSpace();
 
   // Banner + header take ~45% of a typical phone screen, leaving the services in view.
-  const bannerHeight = Math.round(width * 0.92);
+  const bannerHeight = Math.round(width * 0.8);
   const contentWidth = width - SIDE * 2;
 
   // Status bar: light over the banner, dark once the sheet reaches the top.

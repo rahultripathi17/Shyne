@@ -152,26 +152,29 @@ export function DockCard({ item, position, onDismiss }: { item: DockItem; positi
         transform: [{ translateY: leave.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
       }}
     >
-      <Pressable
-        onPress={open}
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-      >
-        <Lead item={item} tone={copy.tone} />
+      {/* The card body and its buttons are siblings, so no button sits inside another. */}
+      <View style={styles.card}>
+        <Pressable
+          onPress={open}
+          accessibilityRole="button"
+          accessibilityLabel={label}
+          style={({ pressed }) => [styles.main, pressed && styles.cardPressed]}
+        >
+          <Lead item={item} tone={copy.tone} />
 
-        <View style={styles.copy}>
-          <Text style={styles.title} numberOfLines={1}>
-            {item.kind === 'live' && item.stage === 'on_the_way' ? (
-              <>
-                Arriving in <Text style={styles.eta}>{item.etaMin ?? 0} min</Text>
-              </>
-            ) : (
-              copy.title
-            )}
-          </Text>
-          <Detail item={item} text={copy.detail} />
-        </View>
+          <View style={styles.copy}>
+            <Text style={styles.title} numberOfLines={1}>
+              {item.kind === 'live' && item.stage === 'on_the_way' ? (
+                <>
+                  Arriving in <Text style={styles.eta}>{item.etaMin ?? 0} min</Text>
+                </>
+              ) : (
+                copy.title
+              )}
+            </Text>
+            <Detail item={item} text={copy.detail} />
+          </View>
+        </Pressable>
 
         {copy.cta && (
           <PressableScale onPress={open} accessibilityLabel={copy.cta} style={styles.cta}>
@@ -189,7 +192,7 @@ export function DockCard({ item, position, onDismiss }: { item: DockItem; positi
             <Ionicons name="close" size={18} color={ink.faint} />
           </Pressable>
         )}
-      </Pressable>
+      </View>
     </Animated.View>
   );
 }
@@ -340,6 +343,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: ROW_BG,
     overflow: 'hidden',
+  },
+  main: {
+    flex: 1,
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
   },
   cardPressed: {
     opacity: 0.85,

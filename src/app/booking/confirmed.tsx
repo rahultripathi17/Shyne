@@ -11,6 +11,7 @@ import { InstructionsSheet, YellowButton } from '../../components/tracking/Track
 import { T } from '../../components/tracking/trackTheme';
 import { TRACK } from '../../data/serviceTracking';
 import { useAllBookings } from '../../lib/bookings';
+import { useAppStore } from '../../store/AppStore';
 
 const CAR = require('../../../assets/booking/track/booked-car.png');
 
@@ -18,8 +19,19 @@ const CAR = require('../../../assets/booking/track/booked-car.png');
 export default function BookingConfirmedScreen() {
   const insets = useSafeAreaInsets();
   const toast = useToast();
-  const { id, saved } = useLocalSearchParams<{ id?: string; saved?: string }>();
+  const {
+    id,
+    saved: savedAmount,
+    amount,
+    pay,
+  } = useLocalSearchParams<{
+    id?: string;
+    saved?: string;
+    amount?: string;
+    pay?: string;
+  }>();
   const all = useAllBookings();
+  const stored = useAppStore().bookings.find((b) => b.id === id);
   const item = all.find((b) => b.id === id) ?? all.find((b) => b.id === 'w2')!;
   const [instructions, setInstructions] = useState(false);
   const [sheet, setSheet] = useState(false);
@@ -34,8 +46,9 @@ export default function BookingConfirmedScreen() {
           </View>
           <Text style={styles.title}>Booking Confirmed</Text>
           <Text style={styles.sub}>Your service partner will arrive at the scheduled time.</Text>
+          <Text style={styles.ref}>Booking ID: {item.ref}</Text>
         </View>
-        <SavedBand amount={Number(saved) || TRACK.saved} />
+        <SavedBand amount={Number(savedAmount) || TRACK.saved} />
 
         <View style={styles.body}>
           <View style={styles.card}>
@@ -66,6 +79,45 @@ export default function BookingConfirmedScreen() {
               </View>
             </View>
           </View>
+
+          {pay ? (
+            <View style={[styles.payRow, pay === 'later' && styles.payRowDue]}>
+              <Ionicons
+                name={pay === 'later' ? 'time-outline' : 'checkmark-circle'}
+                size={18}
+                color={pay === 'later' ? '#B76E00' : T.green}
+              />
+              <Text style={[styles.payText, pay === 'later' && styles.payTextDue]}>
+                {pay === 'later'
+                  ? `₹${Number(amount).toLocaleString('en-IN')} to pay after your wash`
+                  : `Paid ₹${Number(amount).toLocaleString('en-IN')} via ${pay}`}
+              </Text>
+            </View>
+          ) : null}
+
+          {stored?.contact && (
+            <View style={styles.people}>
+              {stored.bookedFor && (
+                <View style={styles.personRow}>
+                  <Ionicons name="person-outline" size={15} color={T.muted} />
+                  <Text style={styles.personText}>
+                    For <Text style={styles.personStrong}>{stored.bookedFor.name}</Text> · +91 {stored.bookedFor.phone}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.personRow}>
+                <Ionicons name="call-outline" size={15} color={T.muted} />
+                <Text style={styles.personText}>
+                  Partner will call{' '}
+                  <Text style={styles.personStrong}>{stored.contact.role === 'You' ? 'you' : stored.contact.name}</Text>
+                  {stored.contact.role !== 'You' && stored.contact.role !== 'Booked for'
+                    ? ` (${stored.contact.role})`
+                    : ''}
+                  {` · +91 ${stored.contact.phone}`}
+                </Text>
+              </View>
+            </View>
+          )}
 
           <View style={styles.actions}>
             <Pressable onPress={() => setSheet(true)} accessibilityRole="button" style={styles.addInstr}>
@@ -132,8 +184,55 @@ const styles = StyleSheet.create({
   title: {
     marginTop: 12,
     fontFamily: fonts.bold,
-    fontSize: 21,
+    fontSize: 19,
     color: T.ink,
+  },
+  ref: {
+    marginTop: 6,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    color: T.muted,
+  },
+  people: {
+    marginTop: 12,
+    gap: 8,
+  },
+  personRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  personText: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 12.5,
+    color: T.ink,
+  },
+  personStrong: {
+    fontFamily: fonts.semiBold,
+    color: T.text,
+  },
+  payRow: {
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#EAF7EC',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  payRowDue: {
+    backgroundColor: '#FFF1D6',
+  },
+  payText: {
+    flex: 1,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    color: T.green,
+  },
+  payTextDue: {
+    color: '#B76E00',
   },
   sub: {
     marginTop: 4,

@@ -43,7 +43,7 @@ export const shared = StyleSheet.create({
     marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
     marginTop: 24,
@@ -63,7 +63,7 @@ export const shared = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#FFFFFF',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
   },
 });
@@ -95,13 +95,17 @@ export const figma = {
   addressText: '#E7E6E7',
 };
 
+// Weight roles, tuned to the Figma (Dev File): text is mostly Medium/SemiBold, Bold is for the few
+// numbers and headings that lead a screen. Plus Jakarta Sans runs wide, so the heavy cuts read as
+// shouting on a phone: `bold` maps to SemiBold and `extraBold` to Bold. The 800 cut is kept only
+// for the italic "BLACK" wordmark.
 export const fonts = {
   extraLight: 'PlusJakartaSans_200ExtraLight',
   light: 'PlusJakartaSans_300Light',
   regular: 'PlusJakartaSans_400Regular',
   medium: 'PlusJakartaSans_500Medium',
   semiBold: 'PlusJakartaSans_600SemiBold',
-  bold: 'PlusJakartaSans_700Bold',
-  extraBold: 'PlusJakartaSans_800ExtraBold',
+  bold: 'PlusJakartaSans_600SemiBold',
+  extraBold: 'PlusJakartaSans_700Bold',
   extraBoldItalic: 'PlusJakartaSans_800ExtraBold_Italic',
 };

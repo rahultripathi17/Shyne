@@ -9,7 +9,10 @@ import { fonts } from './theme';
  * Bharat-series plates. Anything else is kept as typed (letters and digits only).
  */
 export const formatPlate = (v: string) => {
-  const raw = v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11);
+  const raw = v
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 11);
   const parts =
     raw.match(/^([A-Z]{1,2})(\d{0,2})([A-Z]{0,3})(\d{0,4})$/) ?? raw.match(/^(\d{1,2})(BH|B)?(\d{0,4})([A-Z]{0,2})$/);
   return parts ? parts.slice(1).filter(Boolean).join(' ') : raw;
@@ -163,7 +166,7 @@ const styles = StyleSheet.create({
     height: '100%',
     paddingHorizontal: 8,
     fontFamily: fonts.extraBold,
-    fontSize: 22,
+    fontSize: 20,
     letterSpacing: 2.2,
     color: ink.text,
     textAlign: 'center',
@@ -179,7 +182,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 8,
     fontFamily: fonts.extraBold,
-    fontSize: 19,
+    fontSize: 17,
     lineHeight: 24,
     letterSpacing: 1.6,
     color: ink.text,

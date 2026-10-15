@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     fontFamily: fonts.extraBold,
-    fontSize: 18,
+    fontSize: 17,
     letterSpacing: -0.3,
     color: R.text,
   },
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
   meRank: {
     minWidth: 36,
     fontFamily: fonts.extraBoldItalic,
-    fontSize: 18,
+    fontSize: 17,
     color: R.yellow,
   },
   meName: {
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     fontFamily: fonts.extraBold,
-    fontSize: 19,
+    fontSize: 17,
     letterSpacing: -0.4,
     color: R.text,
   },

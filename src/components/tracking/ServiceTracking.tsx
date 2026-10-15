@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
   },
   headTitle: {
     fontFamily: fonts.semiBold,
-    fontSize: 18,
+    fontSize: 17,
     color: T.ink,
   },
   headSub: {
@@ -695,7 +695,7 @@ const styles = StyleSheet.create({
   resultTitle: {
     marginTop: 10,
     fontFamily: fonts.bold,
-    fontSize: 21,
+    fontSize: 19,
     color: T.ink,
   },
   refundBtn: {
@@ -1029,7 +1029,7 @@ const styles = StyleSheet.create({
   },
   billPrice: {
     fontFamily: fonts.semiBold,
-    fontSize: 18,
+    fontSize: 17,
     color: T.ink,
   },
   mrp: {

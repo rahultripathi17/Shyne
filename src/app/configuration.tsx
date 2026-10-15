@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    height: 54,
+    height: 50,
     paddingHorizontal: 16,
   },
   rowPressed: {
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
   rowTitle: {
     flex: 1,
     fontFamily: fonts.semiBold,
-    fontSize: 15,
+    fontSize: 14,
     color: ink.text,
   },
   rowSub: {

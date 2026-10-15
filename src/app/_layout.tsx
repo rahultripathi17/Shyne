@@ -39,6 +39,7 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
         <Stack.Screen name="wash" options={{ headerShown: false }} />
         <Stack.Screen name="booking/slot" options={{ headerShown: false }} />
         <Stack.Screen name="booking/checkout" options={{ headerShown: false }} />
+        <Stack.Screen name="booking/pay" options={{ headerShown: false }} />
         <Stack.Screen name="address/index" options={{ headerShown: false }} />
         <Stack.Screen name="address/map" options={{ headerShown: false }} />
         {/* Full screens (not sheets) with their own top bar */}

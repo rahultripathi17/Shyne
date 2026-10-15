@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     flex: 1,
     fontFamily: fonts.extraBold,
-    fontSize: 18,
+    fontSize: 17,
     letterSpacing: -0.3,
     color: ink.text,
   },

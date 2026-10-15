@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   },
   char: {
     fontFamily: fonts.bold,
-    fontSize: 24,
+    fontSize: 21,
     lineHeight: 30,
     letterSpacing: -0.4,
     color: ink.text,
