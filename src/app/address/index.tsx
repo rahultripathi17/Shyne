@@ -23,11 +23,13 @@ import { addressLabel, addressLine, type AddressTag, type SavedAddress, useAppSt
 // An address saved for someone else is listed under that person's name with a person icon.
 // Picking one makes it the address everywhere (Home header, Car Services, Slot and Checkout).
 
-const ACCENT = '#D97706';
-const ICON: Record<AddressTag, 'home-outline' | 'briefcase-outline' | 'navigate-outline'> = {
-  Home: 'home-outline',
-  Work: 'briefcase-outline',
-  Other: 'navigate-outline',
+const YELLOW = '#FFF4C2';
+const GOLD = '#8A6400';
+// The app's address icons: filled glyphs on one neutral circle (a person for someone else's address).
+const ICON: Record<AddressTag, 'home' | 'briefcase' | 'location'> = {
+  Home: 'home',
+  Work: 'briefcase',
+  Other: 'location',
 };
 
 /** What a saved address is called in the list: the receiver's name, or its tag. */
@@ -136,7 +138,9 @@ export default function AddressSelectionScreen() {
                 style={[styles.row, i > 0 && styles.rowLine]}
               >
                 <View style={styles.tile}>
-                  <Ionicons name="location-outline" size={18} color={T.text} />
+                  <View style={[styles.box, styles.neutral]}>
+                    <Ionicons name="location-outline" size={17} color={T.text} />
+                  </View>
                 </View>
                 <View style={styles.flex}>
                   <Text style={styles.rowTitle} numberOfLines={1}>
@@ -157,22 +161,30 @@ export default function AddressSelectionScreen() {
                 accessibilityRole="button"
                 style={({ pressed }) => [styles.quickTile, pressed && styles.pressed]}
               >
-                {locating ? (
-                  <ActivityIndicator size="small" color={ACCENT} />
-                ) : (
-                  <Ionicons name="locate-outline" size={22} color={ACCENT} />
-                )}
-                <Text style={styles.quickText}>Use Current{'
-'}Location</Text>
+                <View style={styles.quickIcon}>
+                  {locating ? (
+                    <ActivityIndicator size="small" color={GOLD} />
+                  ) : (
+                    <Ionicons name="locate" size={18} color={GOLD} />
+                  )}
+                </View>
+                <View>
+                  <Text style={styles.quickTitle}>Use current location</Text>
+                  <Text style={styles.quickSub}>Using your phone’s GPS</Text>
+                </View>
               </Pressable>
               <Pressable
                 onPress={() => openMap()}
                 accessibilityRole="button"
                 style={({ pressed }) => [styles.quickTile, pressed && styles.pressed]}
               >
-                <Ionicons name="add-circle-outline" size={22} color={ACCENT} />
-                <Text style={styles.quickText}>Add New{'
-'}Address</Text>
+                <View style={styles.quickIcon}>
+                  <Ionicons name="add" size={20} color={GOLD} />
+                </View>
+                <View>
+                  <Text style={styles.quickTitle}>Add new address</Text>
+                  <Text style={styles.quickSub}>Pick the spot on the map</Text>
+                </View>
               </Pressable>
             </View>
 
@@ -187,7 +199,7 @@ export default function AddressSelectionScreen() {
               <View style={styles.group}>
                 {sorted.map((a, i) => {
                   const current = isCurrent(a);
-                  const forSomeone = !!a.contact;
+                  const icon = a.contact ? 'person' : ICON[a.tag];
                   return (
                     <View key={a.id} style={[styles.rowWrap, i > 0 && styles.rowLine]}>
                       <Pressable
@@ -201,7 +213,9 @@ export default function AddressSelectionScreen() {
                         style={({ pressed }) => [styles.row, styles.rowFlex, pressed && styles.pressed]}
                       >
                         <View style={styles.tile}>
-                          <Ionicons name={forSomeone ? 'person-outline' : ICON[a.tag]} size={18} color={T.text} />
+                          <View style={[styles.box, styles.neutral]}>
+                            <Ionicons name={icon} size={17} color={T.text} />
+                          </View>
                           {here && a.lat && a.lng ? (
                             <Text style={styles.distance}>{distanceLabel(here, { lat: a.lat, lng: a.lng })}</Text>
                           ) : null}
@@ -365,11 +379,35 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     gap: 8,
   },
-  quickText: {
-    fontFamily: fonts.medium,
-    fontSize: 13,
-    lineHeight: 17,
-    color: T.ink,
+  quickTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13.5,
+    color: T.text,
+  },
+  quickSub: {
+    marginTop: 2,
+    fontFamily: fonts.regular,
+    fontSize: 11.5,
+    lineHeight: 15,
+    color: T.muted,
+  },
+  quickIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: YELLOW,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  box: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  neutral: {
+    backgroundColor: '#F2F3F5',
   },
   section: {
     marginTop: 24,
@@ -404,14 +442,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tile: {
-    width: 50,
-    minHeight: 50,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: '#F2F3F5',
+    width: 48,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
+    gap: 4,
   },
   distance: {
     fontFamily: fonts.medium,

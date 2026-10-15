@@ -247,7 +247,7 @@ export function ContactSheet({
               accessibilityRole="button"
               accessibilityLabel="Choose from your contacts"
             >
-              <MaterialCommunityIcons name="contacts-outline" size={22} color={T.ink} />
+              <MaterialCommunityIcons name="book-account-outline" size={22} color={T.ink} />
             </Pressable>
           </View>
           <Text style={styles.labelHead}>This person is your</Text>

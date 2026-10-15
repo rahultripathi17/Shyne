@@ -90,7 +90,7 @@ export function AddressForm({
   return (
     <FormSheet
       visible={visible && !picking}
-      title={initial ? 'Edit address' : 'Save address details'}
+      title="Save address details"
       onClose={onClose}
       notice={notice}
       footer={<YellowButton label="Save Address" onPress={save} />}
@@ -146,7 +146,7 @@ export function AddressForm({
               accessibilityRole="button"
               accessibilityLabel="Choose from your contacts"
             >
-              <MaterialCommunityIcons name="contacts-outline" size={22} color={T.ink} />
+              <MaterialCommunityIcons name="book-account-outline" size={22} color={T.ink} />
             </Pressable>
           </View>
         </View>
@@ -291,10 +291,7 @@ const styles = StyleSheet.create({
     color: T.text,
   },
   receiver: {
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: '#F4F5F8',
+    marginTop: 14,
     gap: 10,
   },
   receiverInput: {

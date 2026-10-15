@@ -53,40 +53,41 @@ export function FormSheet({
         pointerEvents="box-none"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={[styles.sheet, { maxHeight }]}>
-          <View style={styles.grabber} />
-          <View style={styles.head}>
-            <View style={styles.flex}>
+        <View style={[styles.wrap, { maxHeight }]}>
+          {/* Close floats just above the sheet's corner, as in the live app. */}
+          <Pressable
+            onPress={onClose}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            style={styles.close}
+          >
+            <Ionicons name="close" size={20} color={T.text} />
+          </Pressable>
+          <View style={styles.sheet}>
+            <View style={styles.grabber} />
+            <View style={styles.head}>
               <Text style={styles.title}>{title}</Text>
               {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
             </View>
-            <Pressable
-              onPress={onClose}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              style={styles.close}
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+              contentContainerStyle={styles.body}
             >
-              <Ionicons name="close" size={18} color={T.text} />
-            </Pressable>
+              {children}
+            </ScrollView>
+            {notice ? (
+              <View style={styles.notice}>
+                <Ionicons name="information-circle" size={15} color="#FFFFFF" />
+                <Text style={styles.noticeText}>{notice}</Text>
+              </View>
+            ) : null}
+            {footer ? (
+              <View style={[styles.footer, { paddingBottom: keyboard > 0 ? 12 : insets.bottom + 12 }]}>{footer}</View>
+            ) : null}
           </View>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-            contentContainerStyle={styles.body}
-          >
-            {children}
-          </ScrollView>
-          {notice ? (
-            <View style={styles.notice}>
-              <Ionicons name="information-circle" size={15} color="#FFFFFF" />
-              <Text style={styles.noticeText}>{notice}</Text>
-            </View>
-          ) : null}
-          {footer ? (
-            <View style={[styles.footer, { paddingBottom: keyboard > 0 ? 12 : insets.bottom + 12 }]}>{footer}</View>
-          ) : null}
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -146,6 +147,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
+    flexShrink: 1,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     backgroundColor: '#FFFFFF',
@@ -162,12 +164,7 @@ const styles = StyleSheet.create({
   head: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ECEDF0',
+    paddingBottom: 4,
   },
   title: {
     fontFamily: fonts.semiBold,
@@ -181,13 +178,25 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     color: T.muted,
   },
+  wrap: {
+    width: '100%',
+  },
   close: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#F2F3F5',
+    position: 'absolute',
+    top: -54,
+    right: 16,
+    zIndex: 2,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   body: {
     paddingHorizontal: 20,
