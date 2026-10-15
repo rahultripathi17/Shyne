@@ -24,11 +24,13 @@ export default function BookingConfirmedScreen() {
     saved: savedAmount,
     amount,
     pay,
+    upfront,
   } = useLocalSearchParams<{
     id?: string;
     saved?: string;
     amount?: string;
     pay?: string;
+    upfront?: string;
   }>();
   const all = useAllBookings();
   const stored = useAppStore().bookings.find((b) => b.id === id);
@@ -89,7 +91,7 @@ export default function BookingConfirmedScreen() {
               />
               <Text style={[styles.payText, pay === 'later' && styles.payTextDue]}>
                 {pay === 'later'
-                  ? `₹${Number(amount).toLocaleString('en-IN')} to pay after your wash`
+                  ? `${Number(upfront) ? `₹${Number(upfront)} paid · ` : ''}₹${Number(amount).toLocaleString('en-IN')} to pay before your wash is complete`
                   : `Paid ₹${Number(amount).toLocaleString('en-IN')} via ${pay}`}
               </Text>
             </View>

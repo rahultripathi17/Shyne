@@ -18,7 +18,7 @@ import { useAllBookings } from '../../lib/bookings';
 /** The full booking page: status, schedule, journey, extras, payment, rating and help. */
 export default function BookingDetailsScreen() {
   const insets = useSafeAreaInsets();
-  const { id, stage } = useLocalSearchParams<{ id: string; stage?: string }>();
+  const { id, stage, due } = useLocalSearchParams<{ id: string; stage?: string; due?: string }>();
   const item = useAllBookings().find((b) => b.id === id);
   const toast = useToast();
   const [stars, setStars] = useState(0);
@@ -35,7 +35,7 @@ export default function BookingDetailsScreen() {
   // Wash and garage visits get the live tracking page; `?stage=` previews any stage.
   if ((item.vertical === 'washes' || item.vertical === 'garage') && !item.usage) {
     const at = isTrackStage(stage) ? stage : stageFor(item);
-    return <ServiceTracking key={`${item.id}-${at}`} item={item} stage={at} />;
+    return <ServiceTracking key={`${item.id}-${at}`} item={item} stage={at} dueOverride={Number(due) || undefined} />;
   }
 
   const vertical = VERTICALS.find((v) => v.key === item.vertical) ?? VERTICALS[0];
@@ -56,7 +56,11 @@ export default function BookingDetailsScreen() {
         <View style={styles.card}>
           <View style={styles.hero}>
             <View style={styles.heroArt}>
-              <Image source={item.image ?? vertical.image} resizeMode="contain" style={styles.heroImg} />
+              {item.photo ? (
+                <Image source={item.photo} resizeMode="cover" style={styles.heroPhoto} />
+              ) : (
+                <Image source={item.image ?? vertical.image} resizeMode="contain" style={styles.heroImg} />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.heroTitle}>{item.title}</Text>
@@ -241,6 +245,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#F6F7F9',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  heroPhoto: {
+    width: '100%',
+    height: '100%',
   },
   heroImg: {
     width: 60,

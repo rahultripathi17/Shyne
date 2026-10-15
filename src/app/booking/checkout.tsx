@@ -20,6 +20,7 @@ import { T } from '../../components/tracking/trackTheme';
 import { VehiclePhoto } from '../../components/VehiclePhoto';
 import {
   BLACK,
+  PAY_LATER_UPFRONT,
   draftPrice,
   serviceStart,
   HOORA_POINTS,
@@ -32,7 +33,6 @@ import {
   washService,
 } from '../../data/bookingFlow';
 import { setPendingBooking, getPendingBooking, type PendingBooking } from '../../data/pendingBooking';
-import { usePlaceBooking } from '../../lib/placeBooking';
 import { addressLabel, addressLine, useAppStore } from '../../store/AppStore';
 
 // Checkout (Figma "OD booking - checkout" 11978:4509): review, carcare deal, coupons and points,
@@ -46,7 +46,6 @@ export default function CheckoutScreen() {
   const toast = useToast();
   const draft = useDraft();
   const { selectedCar, location, addresses = [], blackMember, updateCar } = useAppStore();
-  const place = usePlaceBooking();
   const svc = washService(draft.serviceId);
   const price = draftPrice(draft);
 
@@ -94,7 +93,10 @@ export default function CheckoutScreen() {
   const pointsAmt = points ? Math.min(HOORA_POINTS, beforePoints) : 0;
   const payable = beforePoints - pointsAmt;
   const saved = price.mrp - price.total + (deal ? SPECIAL_DEAL.mrp - SPECIAL_DEAL.price : 0) + blackSave + pointsAmt;
-  const plateOk = isValidPlate(plate);
+  // Vehicle number is optional; if one is typed it has to look like a real plate.
+  const plateEmpty = plate.trim() === '';
+  const plateOk = plateEmpty || isValidPlate(plate);
+  const plateText = plateEmpty ? '' : formatPlate(plate);
   const mm = String(Math.floor(left / 60)).padStart(2, '0');
   const ss = String(left % 60).padStart(2, '0');
 
@@ -117,7 +119,7 @@ export default function CheckoutScreen() {
       router.push('/address');
       return;
     }
-    if (formatPlate(plate) !== selectedCar.plate) updateCar(selectedCar.id, { plate: formatPlate(plate) });
+    if (!plateEmpty && plateText !== selectedCar.plate) updateCar(selectedCar.id, { plate: plateText });
     const start = serviceStart(draft);
     const iso = draft.instant ? days[0].iso : (draft.date ?? days[0].iso);
     const slot = draft.instant ? 'In 30 mins' : slotRange(draft.hour ?? 9);
@@ -126,7 +128,7 @@ export default function CheckoutScreen() {
       booking: {
         serviceId: svc.id,
         title,
-        car: { ...selectedCar, plate: formatPlate(plate) },
+        car: { ...selectedCar, plate: plateText },
         date: iso,
         slot,
         address: `${location.label} - ${location.address}`,
@@ -282,7 +284,9 @@ export default function CheckoutScreen() {
               <Text style={styles.carName}>Add your vehicle</Text>
             </Pressable>
           )}
-          <Text style={styles.label}>Vehicle number</Text>
+          <Text style={styles.label}>
+            Vehicle number <Text style={styles.optional}>(optional)</Text>
+          </Text>
           <View style={[styles.plate, tried && !plateOk && styles.plateErr]}>
             <View style={styles.ind}>
               <Text style={styles.indText}>IND</Text>
@@ -400,7 +404,7 @@ export default function CheckoutScreen() {
               label: 'Vehicle',
               value: selectedCar
                 ? `${[selectedCar.brandName, selectedCar.model].filter(Boolean).join(' ') || 'My Bike'}${
-                    plateOk ? ` · ${formatPlate(plate)}` : ''
+                    plateText && plateOk ? ` · ${plateText}` : ''
                   }`
                 : 'Add your vehicle',
             },
@@ -485,24 +489,39 @@ export default function CheckoutScreen() {
 
       <FormSheet
         visible={sheet === 'later'}
-        title="Pay after your wash"
-        subtitle={`Book now and pay ${rupees(payable)} once the service is done.`}
+        title="Pay Later"
+        subtitle={`Pay ${rupees(PAY_LATER_UPFRONT)} now to confirm your slot. Pay the remaining ${rupees(
+          Math.max(0, payable - PAY_LATER_UPFRONT),
+        )} anytime before your wash is complete.`}
         onClose={() => setSheet(null)}
         footer={
           <YellowButton
-            label="Confirm booking"
+            label={`Pay ${rupees(PAY_LATER_UPFRONT)} & confirm`}
             onPress={() => {
               const pending = getPendingBooking();
               setSheet(null);
-              if (pending) place(pending, { later: true });
+              if (pending) {
+                setPendingBooking({ ...pending, upfront: Math.min(PAY_LATER_UPFRONT, pending.payable) });
+                router.push('/booking/pay');
+              }
             }}
           />
         }
       >
+        <View style={styles.laterSplit}>
+          <View style={styles.laterSplitRow}>
+            <Text style={styles.laterSplitLabel}>Pay now to confirm</Text>
+            <Text style={styles.laterSplitValue}>{rupees(PAY_LATER_UPFRONT)}</Text>
+          </View>
+          <View style={styles.laterSplitRow}>
+            <Text style={styles.laterSplitLabel}>Pay before your wash is complete</Text>
+            <Text style={styles.laterSplitValue}>{rupees(Math.max(0, payable - PAY_LATER_UPFRONT))}</Text>
+          </View>
+        </View>
         <View style={styles.laterPoints}>
           {[
-            'No advance payment needed',
-            'Pay by UPI, card or cash after the wash',
+            'Pay the rest in the app, while your wash is on',
+            'UPI, card or cash to the partner',
             'Same price and offers as Pay Now',
           ].map((t) => (
             <View key={t} style={styles.laterPoint}>
@@ -822,6 +841,11 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: 14,
     color: T.text,
+  },
+  optional: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: T.muted,
   },
   plate: {
     height: 50,
@@ -1238,6 +1262,29 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     lineHeight: 20,
     color: T.ink,
+  },
+  laterSplit: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#F7F7F8',
+    gap: 8,
+  },
+  laterSplitRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  laterSplitLabel: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: T.ink,
+  },
+  laterSplitValue: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13.5,
+    color: T.text,
   },
   laterPoints: {
     marginTop: 14,

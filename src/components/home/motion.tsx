@@ -6,6 +6,7 @@ import { useAnimatedValue } from '../theme';
 
 type PressableScaleProps = {
   onPress: () => void;
+  onLongPress?: () => void;
   style?: StyleProp<ViewStyle>;
   /** Layout for the outer touch target, e.g. { flex: 1 } so the element can grow or shrink in a row. */
   containerStyle?: StyleProp<ViewStyle>;
@@ -18,6 +19,7 @@ type PressableScaleProps = {
 // Springy press feedback with a light haptic tick — the tactile feel of CRED / Zepto taps.
 export function PressableScale({
   onPress,
+  onLongPress,
   style,
   containerStyle,
   children,
@@ -41,6 +43,8 @@ export function PressableScale({
         void Haptics.selectionAsync();
         onPress();
       }}
+      onLongPress={onLongPress}
+      delayLongPress={450}
     >
       <Animated.View style={[style, { transform: [{ scale }] }]}>{children}</Animated.View>
     </Pressable>

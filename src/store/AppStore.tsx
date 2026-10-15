@@ -62,7 +62,8 @@ export const addressLabel = (a: SavedAddress) => a.contact?.name ?? a.tag;
 export const addressLine = (a: SavedAddress) =>
   [a.flat, a.floor && `Floor ${a.floor}`, a.area].filter(Boolean).join(', ');
 
-export type ContactLabel = 'Driver' | 'Security' | 'Family' | 'Friend';
+/** Who a service contact is to you. ('Security' is how older saves spelt 'Security guard'.) */
+export type ContactLabel = 'Driver' | 'Security guard' | 'Family' | 'Friend' | 'Other' | 'Security';
 
 /** Someone the partner can call instead of you (driver, security, a family member…). */
 export type SavedContact = { id: string; name: string; phone: string; label?: ContactLabel };
@@ -82,11 +83,18 @@ export type Booking = {
   bookedFor?: { name: string; phone: string };
   /** Who the partner calls at the vehicle (you, them, or a driver / caretaker). */
   contact?: { name: string; phone: string; role: string };
-  /** Booked with Pay Later: the amount is due after the service. */
+  /** Booked with Pay Later: the rest is due any time during or after the service. */
   payLater?: boolean;
+  /** Pay Later: what was paid upfront to confirm (the rest = total − this). */
+  paidUpfront?: number;
   /** How it was paid, e.g. "UPI". */
   paidVia?: string;
   status: 'Confirmed' | 'Completed' | 'Cancelled';
+  /** Where today's service is (while Confirmed); unset = booked, partner not started. */
+  stage?: 'on_the_way' | 'arrived' | 'in_progress';
+  /** Set when the service finished, so the dock can ask for payment (Pay Later) and a rating. */
+  completedAt?: number;
+  rated?: boolean;
   createdAt: number;
 };
 
@@ -97,6 +105,8 @@ export type DockPreview = {
   off?: boolean;
   /** Dock states switched off, by key (see DOCK_STATES). */
   hidden?: string[];
+  /** Long-press a booking's button (dock or My Bookings) to move it to its next step. On by default. */
+  noAdvance?: boolean;
 };
 
 type Persisted = {
@@ -182,6 +192,10 @@ type AppState = Persisted & {
   removeAddress: (id: string) => void;
   /** Adds (or updates, same number) a service contact and returns its id. */
   saveContact: (contact: Omit<SavedContact, 'id'>) => string;
+  /** Pays the remaining amount of a Pay Later booking. */
+  settleBooking: (id: string, via: string) => void;
+  /** Removes a service contact you added. */
+  removeContact: (id: string) => void;
   completeOnboarding: () => void;
   addCar: (car: Omit<SavedCar, 'id'>) => void;
   selectCar: (id: string) => void;
@@ -189,6 +203,11 @@ type AppState = Persisted & {
   removeCar: (id: string) => void;
   /** Adds the booking and returns its id. */
   addBooking: (booking: Omit<Booking, 'id' | 'status' | 'createdAt'>) => string;
+  /**
+   * Preview build: moves a booking one step on — booked → partner on the way → arrived → washing →
+   * completed → (Pay Later) paid → rated. Returns what it is now, for a toast.
+   */
+  advanceBooking: (id: string) => string | undefined;
   /** Clears everything and returns to onboarding (used by Log out). */
   signOut: () => void;
 };
@@ -244,6 +263,11 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           const a = s.addresses?.find((x) => x.id === id);
           return a ? { location: { label: addressLabel(a), address: addressLine(a), detected: false } } : {};
         }),
+      settleBooking: (id, via) =>
+        update((s) => ({
+          bookings: s.bookings.map((b) => (b.id === id ? { ...b, payLater: false, paidVia: via } : b)),
+        })),
+      removeContact: (id) => update((s) => ({ contacts: (s.contacts ?? []).filter((c) => c.id !== id) })),
       saveContact: (contact) => {
         const existing = state.contacts?.find((c) => c.phone === contact.phone);
         const id = existing?.id ?? newId();
@@ -275,6 +299,36 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           bookings: [{ ...booking, id, status: 'Confirmed', createdAt: Date.now() }, ...s.bookings],
         }));
         return id;
+      },
+      advanceBooking: (id) => {
+        const b = state.bookings.find((x) => x.id === id);
+        if (!b || b.status === 'Cancelled') return undefined;
+        let patch: Partial<Booking>;
+        let now: string;
+        if (b.status === 'Confirmed') {
+          const next = {
+            none: 'on_the_way',
+            on_the_way: 'arrived',
+            arrived: 'in_progress',
+            in_progress: 'done',
+          } as const;
+          const to = next[b.stage ?? 'none'];
+          patch = to === 'done' ? { status: 'Completed', stage: undefined, completedAt: Date.now() } : { stage: to };
+          now = {
+            on_the_way: 'Partner on the way',
+            arrived: 'Partner arrived',
+            in_progress: 'Wash in progress',
+            done: 'Wash completed',
+          }[to];
+        } else if (b.payLater) {
+          patch = { payLater: false, paidVia: 'UPI' };
+          now = 'Paid in full';
+        } else if (!b.rated) {
+          patch = { rated: true, completedAt: b.completedAt ?? Date.now() };
+          now = 'Rated, all done';
+        } else return undefined;
+        update((s) => ({ bookings: s.bookings.map((x) => (x.id === id ? { ...x, ...patch } : x)) }));
+        return now;
       },
       signOut: () => setState(EMPTY),
     }),

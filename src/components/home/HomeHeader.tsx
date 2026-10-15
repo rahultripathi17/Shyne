@@ -22,7 +22,7 @@ const vehicleLabel = (v: SavedCar | undefined) => {
   return full.length <= 14 ? full : v.model;
 };
 
-// Zomato-style location block: filled pin, bold saved-place name with a chevron,
+// Zomato-style location block: white filled pin, bold saved-place name with a chevron,
 // full address on one muted line. The vehicle sits on the right.
 export function HomeHeader({ addressLabel, address, vehicle, onLocationPress, onVehiclePress }: Props) {
   return (
@@ -34,7 +34,7 @@ export function HomeHeader({ addressLabel, address, vehicle, onLocationPress, on
         accessibilityLabel="Change address"
       >
         <View style={styles.labelRow}>
-          <Ionicons name="location-sharp" size={20} color={ink.yellow} />
+          <Ionicons name="location-sharp" size={20} color={ink.onDark} />
           <Text style={styles.label} numberOfLines={1}>
             {addressLabel}
           </Text>
@@ -53,7 +53,6 @@ export function HomeHeader({ addressLabel, address, vehicle, onLocationPress, on
           <Text style={styles.vehicleName} numberOfLines={1}>
             {vehicleLabel(vehicle)}
           </Text>
-          <Ionicons name="chevron-down" size={11} color={ink.text} />
         </View>
       </PressableScale>
     </View>
@@ -104,13 +103,11 @@ const styles = StyleSheet.create({
   vehicleChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
     marginTop: -3,
     maxWidth: 110,
     backgroundColor: '#FFFFFF',
     borderRadius: 6,
-    paddingLeft: 7,
-    paddingRight: 5,
+    paddingHorizontal: 7,
     paddingVertical: 2,
     shadowColor: '#000',
     shadowOpacity: 0.25,

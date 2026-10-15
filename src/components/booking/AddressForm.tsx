@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -146,7 +146,7 @@ export function AddressForm({
               accessibilityRole="button"
               accessibilityLabel="Choose from your contacts"
             >
-              <MaterialCommunityIcons name="book-account-outline" size={22} color={T.ink} />
+              <MaterialIcons name="contacts" size={22} color={T.muted} />
             </Pressable>
           </View>
         </View>

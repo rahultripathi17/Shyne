@@ -29,6 +29,8 @@ export function stageFor(item: BookingItem): TrackStage {
       return 'assigned';
     case 'On the way':
       return item.alert ? 'delayed' : 'on_the_way';
+    case 'Arrived':
+      return 'arrived';
     case 'Ongoing':
     case 'Started':
       return 'in_progress';

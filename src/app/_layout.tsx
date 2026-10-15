@@ -93,7 +93,7 @@ export default function RootLayout() {
       <AppStoreProvider>
         <View style={{ flex: 1, backgroundColor: ink.bg }}>
           <RootNavigator fontsLoaded={fontsLoaded} />
-          {showSplash && <SplashOverlay onDone={hideSplash} />}
+          {showSplash && <SplashOverlay onDone={hideSplash} fontsReady={fontsLoaded} />}
         </View>
         <StatusBarSync showSplash={showSplash} />
       </AppStoreProvider>

@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -16,7 +16,9 @@ import { useNotice } from './useNotice';
 
 export type ServiceContact = { id: string; name: string; phone: string; tag?: string };
 
-const LABELS: ContactLabel[] = ['Driver', 'Security', 'Family', 'Friend'];
+const LABELS: ContactLabel[] = ['Driver', 'Security guard', 'Family', 'Friend', 'Other'];
+/** Older saves said 'Security'. */
+const labelText = (l?: ContactLabel) => (l === 'Security' ? 'Security guard' : l);
 const initials = (name: string) =>
   name
     .trim()
@@ -35,7 +37,7 @@ export function useContactOptions(): ServiceContact[] {
   const me = { id: 'me', name: name ?? 'You', phone: (phone ?? '').replace(/\D/g, '').slice(-10), tag: 'You' };
   const list: ServiceContact[] = [me];
   for (const c of contacts) {
-    if (c.phone !== me.phone) list.push({ id: c.id, name: c.name, phone: c.phone, tag: c.label });
+    if (c.phone !== me.phone) list.push({ id: c.id, name: c.name, phone: c.phone, tag: labelText(c.label) });
   }
   return list;
 }
@@ -119,11 +121,14 @@ export function ContactSheet({
   onClose: () => void;
   onSelect: (id: string) => void;
 }) {
-  const { saveContact } = useAppStore();
+  const { saveContact, removeContact } = useAppStore();
   const [notice, setNotice] = useNotice();
   const [picking, setPicking] = useState(false);
   const [pick, setPick] = useState(selected);
   const [adding, setAdding] = useState(false);
+  // Edit mode (iOS-style): the list stays clean; "Edit" reveals Remove on the contacts you added.
+  const [editing, setEditing] = useState(false);
+  const hasAdded = options.some((o) => o.id !== 'me');
   const [draft, setDraft] = useState({ name: '', phone: '', label: 'Driver' as ContactLabel });
   const [openedWith, setOpenedWith] = useState(visible);
   if (visible !== openedWith) {
@@ -131,6 +136,7 @@ export function ContactSheet({
     if (visible) {
       setPick(selected);
       setAdding(false);
+      setEditing(false);
     }
   }
 
@@ -170,57 +176,99 @@ export function ContactSheet({
         adding ? (
           <YellowButton label="Add contact" onPress={add} />
         ) : (
-          <YellowButton label="Done" onPress={() => onSelect(pick)} />
+          <YellowButton
+            label={editing ? 'Done editing' : 'Done'}
+            onPress={() => (editing ? setEditing(false) : onSelect(pick))}
+          />
         )
       }
     >
       {!adding ? (
         <View style={styles.list}>
+          {hasAdded && (
+            <View style={styles.listHead}>
+              <Text style={styles.listHeadText}>Your contacts</Text>
+              <Pressable onPress={() => setEditing((e) => !e)} hitSlop={10} accessibilityRole="button">
+                <Text style={styles.editLink}>{editing ? 'Done' : 'Edit'}</Text>
+              </Pressable>
+            </View>
+          )}
           {options.map((o, i) => {
             const on = pick === o.id;
             const me = o.id === 'me';
             return (
-              <Pressable
-                key={o.id}
-                onPress={() => setPick(o.id)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: on }}
-                style={[styles.row, i > 0 && styles.rowLine]}
-              >
-                <View style={[styles.avatar, me && styles.avatarMe]}>
-                  {me ? (
-                    <Ionicons name="person" size={16} color={T.text} />
-                  ) : (
-                    <Text style={styles.avatarText}>{initials(o.name)}</Text>
-                  )}
-                </View>
-                <View style={styles.flex}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.name} numberOfLines={1}>
-                      {me ? 'Me' : o.name}
-                    </Text>
-                    {!me && o.tag ? (
-                      <View style={styles.tag}>
-                        <Text style={styles.tagText}>{o.tag}</Text>
-                      </View>
-                    ) : null}
+              <View key={o.id} style={[styles.row, i > 0 && styles.rowLine]}>
+                <Pressable
+                  onPress={() => setPick(o.id)}
+                  disabled={editing}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
+                  style={styles.rowMain}
+                >
+                  <View style={[styles.avatar, me && styles.avatarMe]}>
+                    {me ? (
+                      <Ionicons name="person" size={16} color={T.text} />
+                    ) : (
+                      <Text style={styles.avatarText}>{initials(o.name)}</Text>
+                    )}
                   </View>
-                  <Text style={styles.phone}>+91 {o.phone}</Text>
-                </View>
-                <View style={[styles.radio, on && styles.radioOn]}>{on && <View style={styles.radioInner} />}</View>
-              </Pressable>
+                  <View style={styles.flex}>
+                    <View style={styles.nameRow}>
+                      <Text style={styles.name} numberOfLines={1}>
+                        {me ? 'Me' : o.name}
+                      </Text>
+                      {!me && o.tag ? (
+                        <View style={styles.tag}>
+                          <Text style={styles.tagText}>{o.tag}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text style={styles.phone}>+91 {o.phone}</Text>
+                  </View>
+                </Pressable>
+                {editing && !me ? (
+                  <Pressable
+                    onPress={() => {
+                      removeContact(o.id);
+                      if (pick === o.id) setPick('me');
+                      if (options.filter((x) => x.id !== 'me').length <= 1) setEditing(false);
+                      setNotice(`${o.name.split(' ')[0]} removed`);
+                    }}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${o.name}`}
+                    style={({ pressed }) => [styles.remove, pressed && styles.removePressed]}
+                  >
+                    <Text style={styles.removeText}>Remove</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    onPress={() => setPick(o.id)}
+                    disabled={editing}
+                    hitSlop={8}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: on }}
+                    accessibilityLabel={me ? 'Me' : o.name}
+                    style={editing && styles.dim}
+                  >
+                    <View style={[styles.radio, on && styles.radioOn]}>{on && <View style={styles.radioInner} />}</View>
+                  </Pressable>
+                )}
+              </View>
             );
           })}
-          <Pressable onPress={() => setAdding(true)} accessibilityRole="button" style={[styles.row, styles.rowLine]}>
-            <View style={styles.addIcon}>
-              <Ionicons name="person-add-outline" size={17} color={T.text} />
-            </View>
-            <View style={styles.flex}>
-              <Text style={styles.name}>Add new contact</Text>
-              <Text style={styles.phone}>Your driver, security guard or a family member</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={T.muted} />
-          </Pressable>
+          {!editing && (
+            <Pressable onPress={() => setAdding(true)} accessibilityRole="button" style={[styles.row, styles.rowLine]}>
+              <View style={styles.addIcon}>
+                <Ionicons name="person-add-outline" size={17} color={T.text} />
+              </View>
+              <View style={styles.flex}>
+                <Text style={styles.name}>Add new contact</Text>
+                <Text style={styles.phone}>Your driver, security guard or a family member</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={T.muted} />
+            </Pressable>
+          )}
         </View>
       ) : (
         <View style={styles.add}>
@@ -247,7 +295,7 @@ export function ContactSheet({
               accessibilityRole="button"
               accessibilityLabel="Choose from your contacts"
             >
-              <MaterialCommunityIcons name="book-account-outline" size={22} color={T.ink} />
+              <MaterialIcons name="contacts" size={22} color={T.muted} />
             </Pressable>
           </View>
           <Text style={styles.labelHead}>This person is your</Text>
@@ -362,6 +410,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
   },
+  rowMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  listHead: {
+    paddingTop: 6,
+    paddingBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  listHeadText: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    color: T.muted,
+  },
+  editLink: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    color: '#1A5FD0',
+  },
+  remove: {
+    height: 30,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#F3C9C9',
+    justifyContent: 'center',
+  },
+  removePressed: {
+    backgroundColor: '#FDF2F2',
+  },
+  removeText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12.5,
+    color: '#C22F2F',
+  },
+  dim: {
+    opacity: 0.35,
+  },
   rowLine: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#E6E7EB',
@@ -428,6 +518,7 @@ const styles = StyleSheet.create({
   },
   labels: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   label: {

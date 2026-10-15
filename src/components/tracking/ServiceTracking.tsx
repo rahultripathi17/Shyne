@@ -31,6 +31,8 @@ import {
 import { sendNotification } from '../../lib/notifications';
 import { useAppStore } from '../../store/AppStore';
 import { HooraLogo } from '../HooraLogo';
+import { PulseHalo } from '../PulseHalo';
+import { payLaterCopy, payPhase } from '../../data/payLater';
 import { fonts, noBounce } from '../theme';
 import { Toast, useToast } from '../Toast';
 import { AddOnsSheet, BillSheet, InstructionsSheet, ManageSheet, RateSheet, YellowButton } from './TrackingSheets';
@@ -50,7 +52,16 @@ const ART = {
 
 type Sheet = 'addOns' | 'bill' | 'instructions' | 'rate' | 'manage' | null;
 
-export function ServiceTracking({ item, stage: initialStage }: { item: BookingItem; stage: TrackStage }) {
+export function ServiceTracking({
+  item,
+  stage: initialStage,
+  dueOverride,
+}: {
+  item: BookingItem;
+  stage: TrackStage;
+  /** Pay Later amount due when opened from the booking dock (sample bookings carry none). */
+  dueOverride?: number;
+}) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const toast = useToast();
@@ -63,6 +74,9 @@ export function ServiceTracking({ item, stage: initialStage }: { item: BookingIt
   const [tip, setTip] = useState<number | null>(null);
   const [instructions, setInstructions] = useState(false);
   const [onCalendar, setOnCalendar] = useState(false);
+  const due = item.due ?? dueOverride ?? 0;
+  const payNow = stage === 'completed';
+  const payCopy = payLaterCopy(payPhase(payNow), due, item.paidUpfront);
 
   const show = showsFor(stage);
   const head = STAGE_HEAD[stage];
@@ -126,6 +140,39 @@ export function ServiceTracking({ item, stage: initialStage }: { item: BookingIt
         {stage === 'completed' && <SavedBand amount={TRACK.saved} />}
         {head.map && (
           <Image source={head.map} style={styles.map} resizeMode="cover" accessibilityLabel="Map with your partner" />
+        )}
+
+        {/* Pay Later: a gentle nudge while the wash is ahead or on; a clear ask once it's done */}
+        {due > 0 && stage !== 'cancelled' && (
+          <Block>
+            <View style={[styles.dueCard, payNow && styles.dueCardNow]}>
+              <View style={styles.dueIcon}>
+                {payNow && <PulseHalo size={40} color="#E5484D" />}
+                <View style={[styles.dueIconInner, payNow && styles.dueIconNow]}>
+                  <Ionicons name="wallet" size={18} color={payNow ? '#B42318' : '#8A5A00'} />
+                </View>
+              </View>
+              <View style={styles.flex}>
+                <Text style={styles.dueTitle}>{payCopy.title}</Text>
+                <Text style={[styles.dueSub, payNow && styles.dueSubNow]}>
+                  {payCopy.line}
+                  {item.paidUpfront ? ` · ${rupees(item.paidUpfront)} paid` : ''}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: '/booking/pay',
+                    params: { settle: item.id, amount: String(due), service: item.title },
+                  })
+                }
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.duePay, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={styles.duePayText}>Pay now</Text>
+              </Pressable>
+            </View>
+          </Block>
         )}
 
         {/* Rating, once it's over */}
@@ -306,7 +353,11 @@ export function ServiceTracking({ item, stage: initialStage }: { item: BookingIt
               <Text style={styles.billPrice}>
                 <Text style={styles.mrp}>{rupees(mrp + addOns.reduce((s, a) => s + a.price, 0))}</Text> {rupees(price)}
               </Text>
-              <Text style={styles.saved}>You Saved {rupees(TRACK.saved)}</Text>
+              {due > 0 ? (
+                <Text style={[styles.dueLine, payNow && { color: '#B42318' }]}>{payCopy.short}</Text>
+              ) : (
+                <Text style={styles.saved}>You Saved {rupees(TRACK.saved)}</Text>
+              )}
             </View>
             <Ionicons name="chevron-forward" size={20} color={T.ink} />
           </Pressable>
@@ -1011,6 +1062,70 @@ const styles = StyleSheet.create({
   contactStrong: {
     fontFamily: fonts.semiBold,
     color: T.text,
+  },
+  dueCard: {
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F6D88A',
+    backgroundColor: '#FFF9E6',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dueCardNow: {
+    borderColor: '#F4C7C3',
+    backgroundColor: '#FFF5F4',
+  },
+  dueIconNow: {
+    backgroundColor: '#FDE2DF',
+  },
+  dueSubNow: {
+    color: '#912018',
+  },
+  dueIcon: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dueIconInner: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFE7A3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dueTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 16,
+    color: T.text,
+  },
+  dueSub: {
+    marginTop: 2,
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#7A5A10',
+  },
+  duePay: {
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: T.text,
+    justifyContent: 'center',
+  },
+  duePayText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  dueLine: {
+    marginTop: 2,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    color: '#B76E00',
   },
   calText: {
     marginLeft: 4,

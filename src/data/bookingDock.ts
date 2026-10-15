@@ -1,3 +1,7 @@
+import type { Booking } from '../store/AppStore';
+import { washService } from './bookingFlow';
+import { type PayPhase, payLaterCopy } from './payLater';
+
 // What the booking dock above the tab bar shows. SAMPLE data for the prototype — replace with the
 // bookings / cart / packs APIs. Raw fields in, copy out (see `dockCopy`), so the API only has to
 // send status and numbers.
@@ -18,6 +22,8 @@ export type DockItem =
       expert?: string;
       /** Booked slot today, e.g. "2:30 PM". */
       slot: string;
+      /** Not today: the day, e.g. "Fri, 16 Oct". */
+      day?: string;
       etaMin?: number;
       minutesLeft?: number;
       /** 0–1, how far along the journey is. */
@@ -29,7 +35,7 @@ export type DockItem =
    * Pay Later: the booking is under way and the customer chose to pay after the service. Stays in the
    * dock until it's paid.
    */
-  | { kind: 'pay'; id: string; service: string; amount: number }
+  | { kind: 'pay'; id: string; service: string; amount: number; phase?: PayPhase }
   | { kind: 'rate'; id: string; service: string; expert: string }
   | { kind: 'cart'; id: string; count: number }
   | { kind: 'pack'; id: string; pack: string; left: number; total: number; expiresInDays: number };
@@ -45,7 +51,6 @@ export type DockCopy = {
 };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
 /** One status line first (what's happening), then one supporting line (what / who). */
 export function dockCopy(item: DockItem): DockCopy {
@@ -55,8 +60,8 @@ export function dockCopy(item: DockItem): DockCopy {
       switch (item.stage) {
         case 'scheduled':
           return {
-            title: `Today · ${item.slot}`,
-            detail: `Expert starts soon · ${item.service}`,
+            title: `${item.day ?? 'Today'} · ${item.slot}`,
+            detail: `${item.day ? 'Booked' : 'Expert starts soon'} · ${item.service}`,
             cta: 'Track',
             tone: 'neutral',
           };
@@ -84,13 +89,13 @@ export function dockCopy(item: DockItem): DockCopy {
       }
       break;
     }
-    case 'pay':
-      return {
-        title: `${rupees(item.amount)} due after your wash`,
-        detail: `Pay Later · ${item.service}`,
-        cta: 'Pay now',
-        tone: 'due',
-      };
+    case 'pay': {
+      // While the wash is ahead or on: a calm nudge. Once it's done: a clear ask.
+      const copy = payLaterCopy(item.phase ?? 'due', item.amount);
+      return item.phase === 'open'
+        ? { title: copy.title, detail: 'Pay now or before your wash is complete', cta: 'Pay now', tone: 'neutral' }
+        : { title: copy.title, detail: 'Wash complete · please pay to close it', cta: 'Pay now', tone: 'due' };
+    }
     case 'rate':
       return {
         title: 'How was your wash?',
@@ -140,7 +145,7 @@ const TODAY = {
   expert: 'Sandeep',
 } as const;
 
-export type DockEntry = { key: string; label: string; item: DockItem };
+export type DockEntry = { key: string; label: string; item: DockItem; /** A booking made in the app. */ own?: boolean };
 
 /**
  * Preview build: every state the dock can show, with sample data, in the exact order a day goes —
@@ -167,8 +172,13 @@ export const DOCK_STATES: DockEntry[] = [
   },
   {
     key: 'pay_later',
-    label: 'Pay Later · booking ongoing',
-    item: { kind: 'pay', id: 'w2', service: 'Exterior Foam Wash', amount: 549 },
+    label: 'Pay Later · wash on, rest to pay',
+    item: { kind: 'pay', id: 'w2', service: 'Exterior Foam Wash', amount: 549, phase: 'open' },
+  },
+  {
+    key: 'pay_due',
+    label: 'Pay Later · wash done, payment due',
+    item: { kind: 'pay', id: 'w2', service: 'Exterior Foam Wash', amount: 549, phase: 'due' },
   },
   {
     key: 'rate',
@@ -182,3 +192,76 @@ export const DOCK_STATES: DockEntry[] = [
     item: { kind: 'pack', id: 'b1', pack: 'Starter Pack', left: 2, total: 4, expiresInDays: 10 },
   },
 ];
+
+// ——— Bookings made in the app ———
+
+const isoDay = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const PROGRESS: Record<LiveStage, number> = { scheduled: 0.15, on_the_way: 0.45, arrived: 0.6, in_progress: 0.75 };
+
+/**
+ * Dock cards for the customer's own bookings: today's (or the one just booked) as a live card that
+ * follows its stage; once finished, the Pay Later amount and then the rating. At most three.
+ */
+export function ownDockEntries(bookings: Booking[], now: Date): DockEntry[] {
+  const today = isoDay(now);
+  const newest = bookings.find((b) => b.status === 'Confirmed');
+  const entries: DockEntry[] = [];
+  for (const b of bookings) {
+    const service = b.title ?? washService(b.serviceId)?.name ?? 'Car wash';
+    if (b.status === 'Confirmed' && (b.stage || b.date === today || b === newest)) {
+      const day =
+        b.date === today
+          ? undefined
+          : new Date(`${b.date}T00:00:00`).toLocaleDateString('en-IN', {
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+            });
+      const stage = b.stage ?? 'scheduled';
+      entries.push({
+        key: `own-${b.id}`,
+        label: service,
+        own: true,
+        item: {
+          kind: 'live',
+          id: b.id,
+          stage,
+          service,
+          vehicle: [b.car.brandName, b.car.model].filter(Boolean).join(' ') || 'Your vehicle',
+          slot: b.slot,
+          day: stage === 'scheduled' ? day : undefined,
+          etaMin: 12,
+          minutesLeft: 25,
+          progress: PROGRESS[stage],
+          endCode: String(b.createdAt).slice(-4),
+        },
+      });
+      if (b.payLater) {
+        entries.push({
+          key: `own-${b.id}-pay`,
+          label: service,
+          own: true,
+          item: { kind: 'pay', id: b.id, service, amount: b.total - (b.paidUpfront ?? 0), phase: 'open' },
+        });
+      }
+    } else if (b.status === 'Completed' && b.completedAt && b.payLater) {
+      entries.push({
+        key: `own-${b.id}-pay`,
+        label: service,
+        own: true,
+        item: { kind: 'pay', id: b.id, service, amount: b.total - (b.paidUpfront ?? 0), phase: 'due' },
+      });
+    } else if (b.status === 'Completed' && b.completedAt && !b.rated) {
+      entries.push({
+        key: `own-${b.id}-rate`,
+        label: service,
+        own: true,
+        item: { kind: 'rate', id: b.id, service, expert: 'your expert' },
+      });
+    }
+  }
+  const rank = new Map(sortDock(entries.map((e) => e.item)).map((item, i) => [item, i]));
+  return entries.sort((a, b) => (rank.get(a.item) ?? 0) - (rank.get(b.item) ?? 0)).slice(0, 3);
+}

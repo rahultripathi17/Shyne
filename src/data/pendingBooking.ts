@@ -4,7 +4,7 @@ import type { Booking } from '../store/AppStore';
 // The booking Checkout hands to Payment (Pay Now) or confirms straight away (Pay Later).
 
 export type PendingBooking = {
-  booking: Omit<Booking, 'id' | 'status' | 'createdAt' | 'payLater' | 'paidVia'>;
+  booking: Omit<Booking, 'id' | 'status' | 'createdAt' | 'payLater' | 'paidVia' | 'paidUpfront'>;
   notif: Partial<NotifData>;
   /** When the service starts, for the reminder notification. */
   start: number;
@@ -12,6 +12,8 @@ export type PendingBooking = {
   saved: number;
   /** "Wash Booking" or "Package Booking", shown on the payment screen. */
   kind: string;
+  /** Pay Later: charge only this now to confirm; the rest is due later. */
+  upfront?: number;
 };
 
 let pending: PendingBooking | null = null;

@@ -1,14 +1,23 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { type ComponentProps, useEffect, useSyncExternalStore } from 'react';
+import { type ComponentProps, useEffect, useState, useSyncExternalStore } from 'react';
 import { Animated, Easing, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
-import { DOCK_STATES, type DockEntry, type DockItem, type DockTone, dockCopy } from '../data/bookingDock';
+import {
+  DOCK_STATES,
+  type DockEntry,
+  type DockItem,
+  type DockTone,
+  dockCopy,
+  ownDockEntries,
+} from '../data/bookingDock';
+import { useAdvanceBooking } from '../lib/advanceBooking';
 import { useAppStore } from '../store/AppStore';
 import { ink } from './home/homeTheme';
 import { PressableScale } from './home/motion';
+import { PulseHalo } from './PulseHalo';
 import { setDockHeight } from './tabBarSpace';
 import { fonts, useAnimatedValue } from './theme';
 
@@ -60,13 +69,17 @@ export function restoreDismissed() {
   notify();
 }
 
-/** Dock cards to show: switched on in Configuration and not closed this session, in order. */
+/**
+ * Dock cards to show: your own bookings first (always), then the sample cards switched on in
+ * Configuration — minus anything closed this session.
+ */
 export function useVisibleDock(entries: DockEntry[] = DOCK_STATES) {
-  const { dockPreview } = useAppStore();
+  const { dockPreview, bookings } = useAppStore();
+  const [now] = useState(() => new Date());
   useSyncExternalStore(subscribe, readVersion, readVersion);
-  if (dockPreview?.off) return [];
   const hidden = new Set(dockPreview?.hidden ?? []);
-  return entries.filter((e) => !hidden.has(e.key) && !dismissed.has(e.key));
+  const samples = dockPreview?.off ? [] : entries.filter((e) => !hidden.has(e.key));
+  return [...ownDockEntries(bookings, now), ...samples].filter((e) => !dismissed.has(e.key));
 }
 
 /**
@@ -76,6 +89,8 @@ export function useVisibleDock(entries: DockEntry[] = DOCK_STATES) {
  */
 export function BookingDock({ entries }: { entries: DockEntry[] }) {
   const { width } = useWindowDimensions();
+  const { dockPreview } = useAppStore();
+  const advanceBooking = useAdvanceBooking();
   const scrollX = useAnimatedValue(0);
   const enter = useAnimatedValue(0);
   const many = entries.length > 1;
@@ -119,6 +134,14 @@ export function BookingDock({ entries }: { entries: DockEntry[] }) {
               item={entry.item}
               position={many ? `${i + 1} of ${entries.length}` : undefined}
               onDismiss={() => dismiss(entry.key)}
+              onAdvance={
+                entry.own && !dockPreview?.noAdvance
+                  ? () => {
+                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      advanceBooking(entry.item.id);
+                    }
+                  : undefined
+              }
             />
           </View>
         ))}
@@ -129,11 +152,24 @@ export function BookingDock({ entries }: { entries: DockEntry[] }) {
 }
 
 function target(item: DockItem) {
-  return item.kind === 'cart' || item.kind === 'pack' ? '/wash' : `/booking/${item.id}`;
+  if (item.kind === 'cart' || item.kind === 'pack') return '/wash';
+  // Pay Later opens the booking with what's due, where it can be paid.
+  return item.kind === 'pay' ? `/booking/${item.id}?due=${item.amount}` : `/booking/${item.id}`;
 }
 
 /** One dock card. Exported for the Configuration screen's previews. */
-export function DockCard({ item, position, onDismiss }: { item: DockItem; position?: string; onDismiss?: () => void }) {
+export function DockCard({
+  item,
+  position,
+  onDismiss,
+  onAdvance,
+}: {
+  item: DockItem;
+  position?: string;
+  onDismiss?: () => void;
+  /** Preview build: long-press the button to move the booking to its next step. */
+  onAdvance?: () => void;
+}) {
   const copy = dockCopy(item);
   const leave = useAnimatedValue(1);
   const open = () => router.push(target(item));
@@ -177,7 +213,7 @@ export function DockCard({ item, position, onDismiss }: { item: DockItem; positi
         </Pressable>
 
         {copy.cta && (
-          <PressableScale onPress={open} accessibilityLabel={copy.cta} style={styles.cta}>
+          <PressableScale onPress={open} onLongPress={onAdvance} accessibilityLabel={copy.cta} style={styles.cta}>
             <Text style={styles.ctaText}>{copy.cta}</Text>
           </PressableScale>
         )}
@@ -218,6 +254,19 @@ function Lead({ item, tone }: { item: DockItem; tone: DockTone }) {
   // Packs show the Hoora "Starter Pack" tickets from the design file instead of an icon.
   if (item.kind === 'pack') {
     return <Image source={STARTER_PACK} style={styles.packArt} resizeMode="contain" accessibilityIgnoresInvertColors />;
+  }
+
+  // Amount due once the wash is done: the wallet breathes a soft ring so it catches the eye.
+  // While the wash is still on it stays calm.
+  if (item.kind === 'pay') {
+    return (
+      <View style={styles.lead}>
+        {item.phase !== 'open' && <PulseHalo size={RING} color={color} />}
+        <View style={[styles.lead, { backgroundColor: bg }]}>
+          <Ionicons name={ICON.pay} size={17} color={color} />
+        </View>
+      </View>
+    );
   }
 
   // Rate the wash: a solid black star on white, matching the black "Rate" button beside it.

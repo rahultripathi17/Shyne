@@ -116,8 +116,8 @@ export const NOTIFICATIONS: NotifDef[] = [
     trigger: 'Pay Later booking, when the service is done',
     timeSensitive: true,
     build: (d) => ({
-      title: `Complete your ${rupees(d.amount)} payment`,
-      body: `Your Pay Later for ${d.service} is due.`,
+      title: `Payment due · ${rupees(d.amount)}`,
+      body: `Your ${d.service} is complete. Tap to pay and close your booking.`,
     }),
     url: booking,
   },

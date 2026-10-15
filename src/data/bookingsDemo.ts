@@ -6,7 +6,12 @@ import type { ImageSourcePropType } from 'react-native';
 export type VerticalKey = 'washes' | 'society' | 'products' | 'bundles' | 'challans' | 'garage' | 'qr';
 
 export const VERTICALS: { key: VerticalKey; label: string; image: ImageSourcePropType; explore: string }[] = [
-  { key: 'washes', label: 'Washes', image: require('../../assets/home/v2/wash-icon.png'), explore: 'Book a wash' },
+  {
+    key: 'washes',
+    label: 'Car & Bike Wash',
+    image: require('../../assets/home/v2/wash-icon.png'),
+    explore: 'Book a wash',
+  },
   {
     key: 'society',
     label: 'Society Pack',
@@ -48,6 +53,8 @@ export type BookingItem = {
   title: string;
   meta: string;
   image?: ImageSourcePropType;
+  /** Service hero photo (the same one Car Services shows), drawn edge to edge. */
+  photo?: ImageSourcePropType;
   /** Small highlighted line under the meta, e.g. add-ons or items. */
   note?: string;
   /** Extras shown in the details sheet. */
@@ -62,6 +69,9 @@ export type BookingItem = {
   placed: string;
   amount: number;
   amountDue?: boolean;
+  /** Pay Later: what's still to pay, and what was paid upfront. */
+  due?: number;
+  paidUpfront?: number;
   /** Bookings made in the app: the full service address. */
   address?: string;
   /** Booked for someone else. */
@@ -69,18 +79,27 @@ export type BookingItem = {
   /** Who the partner calls for this booking. */
   contact?: { name: string; phone: string; role: string };
   action: string;
+  /** Booked in this app (not sample data): it can be moved along in the preview build. */
+  own?: boolean;
   /** Primary (dark) for tracking and paying; quiet outline for viewing and reordering. */
   primary: boolean;
   history: boolean;
 };
 
 const IMG = {
-  interior: require('../../assets/home/wash-man.png'),
   kit: require('../../assets/rewards/prize-carekit.png'),
   dashcam: require('../../assets/home/acc-product2b.png'),
   denting: require('../../assets/home/denting.png'),
   ac: require('../../assets/home/ac-service.png'),
   spray: require('../../assets/home/acc-product2.png'),
+};
+
+// The wash photos from Car Services ("Service at ₹X per day"), so a booking looks like what was booked.
+const PHOTO = {
+  basic: require('../../assets/booking/flow/svc-basic.jpg'),
+  premium: require('../../assets/booking/flow/svc-premium.jpg'),
+  deep: require('../../assets/booking/flow/svc-360.jpg'),
+  basicBike: require('../../assets/booking/flow/svc-basic-bike.jpg'),
 };
 
 export const SAMPLE_BOOKINGS: BookingItem[] = [
@@ -91,9 +110,10 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     ref: '#HW-28491',
     status: 'Ongoing',
     tone: 'progress',
-    eyebrow: 'Three-time wash',
-    title: 'Ceramic Maintenance Wash',
+    eyebrow: 'One-time wash',
+    title: '360 Deep Cleaning',
     meta: 'Honda WR-V · MH 31 AX 4021',
+    photo: PHOTO.deep,
     note: '3 add-ons included',
     addOns: [
       { name: 'Liquid Wax Polish', qty: 1 },
@@ -114,8 +134,9 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     status: 'On the way',
     tone: 'transit',
     eyebrow: 'One-time wash',
-    title: 'Exterior Foam Wash',
+    title: 'Pressure Wash - Premium',
     meta: 'Honda City · MH 31 CX 1234',
+    photo: PHOTO.premium,
     note: '1 add-on included',
     addOns: [{ name: 'Tyre Polish', qty: 1 }],
     when: { icon: 'calendar', title: 'Today, 11 Oct · 2:30 PM', sub: 'Home, Nagpur' },
@@ -131,10 +152,10 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     ref: '#HW-28450',
     status: 'Assigned',
     tone: 'pending',
-    eyebrow: 'Two-time wash',
-    title: 'Interior Deep Cleaning',
+    eyebrow: 'One-time wash',
+    title: 'Bucket Wash - Basic',
     meta: 'Honda Elevate · MH 12 DK 9220',
-    image: IMG.interior,
+    photo: PHOTO.basic,
     when: { icon: 'calendar', title: 'Tue, 13 Oct · 10:00 AM', sub: 'Work, Pune' },
     placed: 'Booked 07 Oct · 9:30 AM',
     amount: 899,
@@ -149,8 +170,9 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     status: 'Placed',
     tone: 'pending',
     eyebrow: 'One-time wash',
-    title: 'Exterior Pressure Wash',
+    title: 'Bike Bucket Wash - Basic',
     meta: 'TVS Jupiter · MH 31 FZ 7781',
+    photo: PHOTO.basicBike,
     when: { icon: 'calendar', title: 'Mon, 12 Oct · 9:00 AM', sub: 'Home, Nagpur' },
     placed: 'Booked 09 Oct · 7:25 AM',
     amount: 449,
@@ -165,8 +187,9 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     status: 'On the way',
     tone: 'transit',
     eyebrow: 'One-time wash',
-    title: 'Exterior Premium Wash',
+    title: 'Pressure Wash - Premium',
     meta: 'Honda Jazz · MH 31 BJ 2210',
+    photo: PHOTO.premium,
     when: { icon: 'calendar', title: 'Today, 11 Oct · 8:00 AM', sub: 'Home, Nagpur' },
     alert: 'Arrival delayed · Get assistance',
     placed: 'Booked 08 Oct · 7:40 PM',
@@ -182,8 +205,9 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     status: 'Completed',
     tone: 'done',
     eyebrow: 'One-time wash',
-    title: 'Exterior Foam Wash',
+    title: 'Bucket Wash - Basic',
     meta: 'Honda City · MH 31 CX 1234',
+    photo: PHOTO.basic,
     when: { icon: 'receipt', title: 'Fri, 2 Oct · 10:40 AM', sub: 'Home, Nagpur' },
     placed: 'Booked 01 Oct · 6:10 PM',
     amount: 499,
@@ -198,9 +222,9 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     status: 'Cancelled',
     tone: 'closed',
     eyebrow: 'One-time wash',
-    title: 'Interior Vacuum Cleaning',
+    title: '360 Deep Cleaning',
     meta: 'Honda Jazz · MH 31 BJ 2210',
-    image: IMG.interior,
+    photo: PHOTO.deep,
     when: { icon: 'receipt', title: 'Sat, 26 Sep · 9:00 AM', sub: 'Refund of ₹399 sent to source' },
     subIsNote: true,
     placed: 'Booked 25 Sep · 9:00 PM',
@@ -218,8 +242,9 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     status: 'Active',
     tone: 'active',
     eyebrow: 'Quarterly package',
-    title: 'Quarterly Premium Wash',
+    title: 'Society Premium Wash',
     meta: 'Audi A3 · MH 31 AA 1111',
+    photo: PHOTO.premium,
     usage: { left: 7, total: 12, label: 'washes remaining' },
     when: { icon: 'calendar', title: 'Next wash: Mon, 12 Oct · 7:30 AM', sub: 'Vision Workspace, Nagpur' },
     placed: 'Purchased 08 Oct · 10:00 AM',
@@ -235,8 +260,9 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     status: 'Active',
     tone: 'active',
     eyebrow: 'Monthly package',
-    title: 'Premium Society Wash',
+    title: 'Society Premium Wash',
     meta: 'Honda City · MH 31 CX 1234',
+    photo: PHOTO.premium,
     usage: { left: 3, total: 4, label: 'washes remaining' },
     when: { icon: 'calendar', title: 'Next wash: Tue, 13 Oct · 8:00 AM', sub: 'Heritage Society, Pune' },
     placed: 'Purchased 28 Sep · 10:00 AM',
@@ -252,8 +278,9 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     status: 'Expired',
     tone: 'closed',
     eyebrow: 'Monthly package',
-    title: 'Essential Society Wash',
+    title: 'Society Basic Wash',
     meta: 'Audi A3 · MH 31 AA 1111',
+    photo: PHOTO.basic,
     usage: { left: 0, total: 4, label: 'washes remaining' },
     when: { icon: 'receipt', title: 'Ended Wed, 30 Sep', sub: 'Vision Workspace, Nagpur' },
     placed: 'Purchased 01 Sep · 8:00 AM',
@@ -340,8 +367,9 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     status: 'Active',
     tone: 'active',
     eyebrow: 'Prepaid wash pack',
-    title: 'Starter Pack · 4 Washes',
+    title: 'Bucket Wash - Basic · 4 Pack',
     meta: 'Applicable on any sedan',
+    photo: PHOTO.basic,
     usage: { left: 2, total: 4, label: 'washes remaining' },
     when: { icon: 'calendar', title: 'Valid until Sat, 24 Oct', sub: 'Any sedan, any Hoora location' },
     subIsNote: true,
@@ -358,8 +386,9 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     status: 'In use',
     tone: 'active',
     eyebrow: 'Monthly package',
-    title: 'Monthly Unlimited Wash',
+    title: 'Pressure Wash - Premium · Monthly',
     meta: 'Honda City · MH 31 CX 1234',
+    photo: PHOTO.premium,
     note: '1 wash already scheduled',
     when: { icon: 'calendar', title: 'Next wash: Mon, 12 Oct · 8:30 AM', sub: 'Valid until 10 Nov, 2026' },
     placed: 'Purchased 01 Oct · 10:00 AM',
@@ -375,8 +404,9 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     status: 'Expired',
     tone: 'closed',
     eyebrow: 'Quarterly package',
-    title: 'Quarterly Basic Wash',
+    title: 'Bucket Wash - Basic · Quarterly',
     meta: 'Applicable on any hatchback',
+    photo: PHOTO.basic,
     usage: { left: 0, total: 6, label: 'washes remaining' },
     when: { icon: 'receipt', title: 'Ended Thu, 10 Sep', sub: 'Any hatchback' },
     subIsNote: true,
@@ -620,6 +650,7 @@ const STEP_BY_STATUS: Record<string, number> = {
   Placed: 0,
   Assigned: 1,
   'On the way': 1,
+  Arrived: 1,
   'Service started': 2,
   Ongoing: 2,
   Scheduled: 0,

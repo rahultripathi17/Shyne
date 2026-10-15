@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { type ComponentProps, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,16 +29,20 @@ const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
 export default function PaymentScreen() {
   const insets = useSafeAreaInsets();
-  const { phone, email } = useAppStore();
+  const { phone, email, bookings, settleBooking } = useAppStore();
   const place = usePlaceBooking();
-  const [pending] = useState(getPendingBooking);
+  // Two ways in: a new booking from Checkout (pending), or paying what's due on a Pay Later booking
+  // from its tracking page (`settle` = booking id, `amount` = what's due).
+  const { settle, amount, service } = useLocalSearchParams<{ settle?: string; amount?: string; service?: string }>();
+  const [pending] = useState(() => (settle ? null : getPendingBooking()));
   const [method, setMethod] = useState('UPI');
   const [upi, setUpi] = useState('');
   const [mobile, setMobile] = useState((phone ?? '').replace(/\D/g, '').slice(-10));
   const [mail, setMail] = useState(email ?? '');
   const [paying, setPaying] = useState(false);
 
-  if (!pending) {
+  const due = settle ? Number(amount) || 0 : 0;
+  if (!pending && !settle) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 40 }]}>
         <Text style={styles.missing}>Nothing to pay right now.</Text>
@@ -50,9 +54,21 @@ export default function PaymentScreen() {
   }
 
   const label = METHODS.find((m) => m.id === method)?.name ?? 'UPI';
+  // Pay Later charges only the upfront amount now; settling charges what's left.
+  const charge = settle ? due : (pending?.upfront ?? pending?.payable ?? 0);
+  const title = settle ? (service ?? 'Remaining payment') : (pending?.kind ?? 'Wash Booking');
+  const amountLabel = settle ? 'Amount due' : pending?.upfront ? 'Pay now to confirm' : 'Total Amount';
   const pay = () => {
     setPaying(true);
-    setTimeout(() => place(pending, { paidVia: label }), 1400);
+    setTimeout(() => {
+      if (settle) {
+        if (bookings.some((b) => b.id === settle)) settleBooking(settle, label);
+        setPaying(false);
+        router.back();
+      } else if (pending) {
+        place(pending, pending.upfront ? { later: true, paidVia: label } : { paidVia: label });
+      }
+    }, 1400);
   };
 
   return (
@@ -63,7 +79,7 @@ export default function PaymentScreen() {
             <HooraMark size={30} />
           </View>
           <View style={styles.flex}>
-            <Text style={styles.merchant}>{pending.kind}</Text>
+            <Text style={styles.merchant}>{title}</Text>
             <View style={styles.trusted}>
               <Ionicons name="shield-checkmark" size={11} color="#1B891F" />
               <Text style={styles.trustedText}>Hoora Trusted Business</Text>
@@ -80,8 +96,13 @@ export default function PaymentScreen() {
         </View>
         <View style={styles.totalRow}>
           <View>
-            <Text style={styles.totalLabel}>Total Amount</Text>
-            <Text style={styles.total}>{rupees(pending.payable)}</Text>
+            <Text style={styles.totalLabel}>{amountLabel}</Text>
+            <Text style={styles.total}>{rupees(charge)}</Text>
+            {pending?.upfront ? (
+              <Text style={styles.totalSub}>
+                Remaining {rupees(pending.payable - pending.upfront)}: pay anytime before your wash is complete
+              </Text>
+            ) : null}
           </View>
           <View style={styles.secure}>
             <Ionicons name="lock-closed" size={11} color={T.text} />
@@ -162,7 +183,7 @@ export default function PaymentScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-        <YellowButton label={`Pay ${rupees(pending.payable)} using ${label}`} onPress={pay} disabled={paying} />
+        <YellowButton label={`Pay ${rupees(charge)} using ${label}`} onPress={pay} disabled={paying} />
       </View>
 
       <Modal visible={paying} transparent animationType="fade">
@@ -253,6 +274,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     fontSize: 24,
     color: T.text,
+  },
+  totalSub: {
+    marginTop: 2,
+    fontFamily: fonts.medium,
+    fontSize: 11.5,
+    color: '#5A4A10',
   },
   secure: {
     flexDirection: 'row',

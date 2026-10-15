@@ -179,6 +179,8 @@ export const SPECIAL_DEAL = {
 };
 
 export const BLACK = { price: 499, mrp: 1200, saves: 60 };
+/** Pay Later: paid upfront to confirm the booking; the rest is paid any time during or after the wash. */
+export const PAY_LATER_UPFRONT = 99;
 export const TIPS = [20, 30, 50];
 export const HOORA_POINTS = 143;
 /** Booking more vehicles in the same visit: price per vehicle. */

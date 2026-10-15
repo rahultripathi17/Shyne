@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import {
   Animated,
   Easing,
+  Image,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -14,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { type BookingItem, journeyStep } from '../data/bookingsDemo';
+import { TRACK } from '../data/serviceTracking';
 import { JourneyTimeline } from './BookingJourney';
 import { ink } from './home/homeTheme';
 import { fonts, noBounce, useAnimatedValue } from './theme';
@@ -27,8 +30,8 @@ type Props = {
 };
 
 /**
- * The journey sheet, opened from a card's date: where the booking is right now, and the
- * two things you may need at that moment — call the professional, or get help.
+ * The journey sheet, opened from a card's date: where the booking is right now, and who to call —
+ * the service partner while they're on the job, and your RM (relationship manager) any time.
  */
 export function BookingSheet({ item, onClose, onHelp }: Props) {
   const insets = useSafeAreaInsets();
@@ -55,6 +58,7 @@ export function BookingSheet({ item, onClose, onHelp }: Props) {
   const step = journeyStep(shown);
   // A professional is on the job once assigned and until the service is done.
   const canCall = isService && shown.status !== 'Cancelled' && step >= 1 && step <= 2;
+  const call = () => void Linking.openURL(`tel:${TRACK.supportPhone}`);
   const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [height * 0.7, 0] });
 
   return (
@@ -69,6 +73,13 @@ export function BookingSheet({ item, onClose, onHelp }: Props) {
 
           {/* Which booking, and when — the close button sits beside the title, not over content */}
           <View style={styles.header}>
+            {shown.photo || shown.image ? (
+              <Image
+                source={shown.photo ?? shown.image}
+                resizeMode={shown.photo ? 'cover' : 'contain'}
+                style={styles.thumb}
+              />
+            ) : null}
             <View style={{ flex: 1 }}>
               <Text style={styles.title} numberOfLines={2}>
                 {shown.title}
@@ -116,21 +127,29 @@ export function BookingSheet({ item, onClose, onHelp }: Props) {
           <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             {canCall && (
               <Pressable
-                onPress={() => onHelp('Calling your professional')}
-                style={({ pressed }) => [styles.action, styles.actionMain, pressed && { opacity: 0.88 }]}
+                onPress={call}
+                style={({ pressed }) => [styles.action, pressed && { backgroundColor: '#F4F5F7' }]}
                 accessibilityRole="button"
+                accessibilityLabel="Call partner"
               >
-                <Ionicons name="call-outline" size={17} color="#FFFFFF" />
-                <Text style={[styles.actionText, { color: '#FFFFFF' }]}>Call professional</Text>
+                <Ionicons name="call-outline" size={18} color={ink.text} />
+                <View>
+                  <Text style={styles.actionText}>Call partner</Text>
+                  <Text style={styles.actionSub}>Your service expert</Text>
+                </View>
               </Pressable>
             )}
             <Pressable
-              onPress={() => onHelp('Help & Support')}
+              onPress={call}
               style={({ pressed }) => [styles.action, pressed && { backgroundColor: '#F4F5F7' }]}
               accessibilityRole="button"
+              accessibilityLabel="Call RM, your relationship manager"
             >
-              <Ionicons name="headset-outline" size={17} color={ink.text} />
-              <Text style={styles.actionText}>Get help</Text>
+              <Ionicons name="headset-outline" size={18} color={ink.text} />
+              <View>
+                <Text style={styles.actionText}>Call RM</Text>
+                <Text style={styles.actionSub}>Relationship manager</Text>
+              </View>
             </Pressable>
           </View>
         </Animated.View>
@@ -171,10 +190,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E6E7EB',
   },
+  thumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: '#F4F5F7',
+  },
   title: {
-    fontFamily: fonts.extraBold,
-    fontSize: 17,
-    lineHeight: 24,
+    fontFamily: fonts.semiBold,
+    fontSize: 16.5,
+    lineHeight: 22,
     letterSpacing: -0.3,
     color: ink.text,
   },
@@ -232,23 +257,25 @@ const styles = StyleSheet.create({
   },
   action: {
     flex: 1,
-    height: 50,
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#DADCE2',
     backgroundColor: '#FFFFFF',
   },
-  actionMain: {
-    borderColor: ink.text,
-    backgroundColor: ink.text,
-  },
   actionText: {
-    fontFamily: fonts.bold,
-    fontSize: 14.5,
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
     color: ink.text,
+  },
+  actionSub: {
+    marginTop: 1,
+    fontFamily: fonts.medium,
+    fontSize: 11,
+    color: ink.muted,
   },
 });

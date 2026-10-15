@@ -19,12 +19,10 @@ import {
 } from '../../lib/geocode';
 import { addressLabel, addressLine, type AddressTag, type SavedAddress, useAppStore } from '../../store/AppStore';
 
-// Select your location: search, two quick actions, then every saved address in one list.
+// Address Selection: search, two quick actions, then every saved address in one list.
 // An address saved for someone else is listed under that person's name with a person icon.
 // Picking one makes it the address everywhere (Home header, Car Services, Slot and Checkout).
 
-const YELLOW = '#FFF4C2';
-const GOLD = '#8A6400';
 // The app's address icons: filled glyphs on one neutral circle (a person for someone else's address).
 const ICON: Record<AddressTag, 'home' | 'briefcase' | 'location'> = {
   Home: 'home',
@@ -94,7 +92,7 @@ export default function AddressSelectionScreen() {
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
           <Ionicons name="arrow-back" size={22} color={T.text} />
         </Pressable>
-        <Text style={styles.title}>Select your location</Text>
+        <Text style={styles.title}>Address Selection</Text>
       </View>
 
       <View style={styles.searchWrap}>
@@ -163,9 +161,9 @@ export default function AddressSelectionScreen() {
               >
                 <View style={styles.quickIcon}>
                   {locating ? (
-                    <ActivityIndicator size="small" color={GOLD} />
+                    <ActivityIndicator size="small" color={T.text} />
                   ) : (
-                    <Ionicons name="locate" size={18} color={GOLD} />
+                    <Ionicons name="locate" size={18} color={T.text} />
                   )}
                 </View>
                 <View>
@@ -179,7 +177,7 @@ export default function AddressSelectionScreen() {
                 style={({ pressed }) => [styles.quickTile, pressed && styles.pressed]}
               >
                 <View style={styles.quickIcon}>
-                  <Ionicons name="add" size={20} color={GOLD} />
+                  <Ionicons name="add" size={20} color={T.text} />
                 </View>
                 <View>
                   <Text style={styles.quickTitle}>Add new address</Text>
@@ -191,9 +189,10 @@ export default function AddressSelectionScreen() {
             <Text style={styles.section}>SAVED ADDRESSES</Text>
             {addresses.length === 0 ? (
               <View style={[styles.group, styles.empty]}>
-                <Ionicons name="location-outline" size={24} color={T.muted} />
+                <View style={[styles.box, styles.neutral]}>
+                  <Ionicons name="home-outline" size={18} color={T.text} />
+                </View>
                 <Text style={styles.emptyTitle}>No saved addresses yet</Text>
-                <Text style={styles.emptyText}>Save home or work once and book in a tap next time.</Text>
               </View>
             ) : (
               <View style={styles.group}>
@@ -395,7 +394,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: YELLOW,
+    backgroundColor: '#F2F3F5',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -501,21 +500,14 @@ const styles = StyleSheet.create({
     color: T.muted,
   },
   empty: {
-    paddingVertical: 28,
+    paddingVertical: 22,
     alignItems: 'center',
-    gap: 4,
   },
   emptyTitle: {
-    marginTop: 6,
-    fontFamily: fonts.semiBold,
-    fontSize: 14,
-    color: T.text,
-  },
-  emptyText: {
-    fontFamily: fonts.regular,
-    fontSize: 12.5,
+    marginTop: 10,
+    fontFamily: fonts.medium,
+    fontSize: 13.5,
     color: T.muted,
-    textAlign: 'center',
   },
   sheetRow: {
     minHeight: 54,

@@ -11,7 +11,13 @@ import { notifyBookingPlaced } from './notifications';
 export function usePlaceBooking() {
   const { addBooking, notifPrefs } = useAppStore();
   return (pending: PendingBooking, payment: { paidVia?: string; later?: boolean }) => {
-    const id = addBooking({ ...pending.booking, payLater: payment.later, paidVia: payment.paidVia });
+    const upfront = payment.later ? (pending.upfront ?? 0) : 0;
+    const id = addBooking({
+      ...pending.booking,
+      payLater: payment.later,
+      paidVia: payment.paidVia,
+      paidUpfront: upfront || undefined,
+    });
     void notifyBookingPlaced({ ...pending.notif, bookingId: id }, new Date(pending.start), notifPrefs);
     clearPendingBooking();
     // Close the booking screens (Car Services → Payment) so Back from here goes to the app, not checkout.
@@ -21,7 +27,8 @@ export function usePlaceBooking() {
       params: {
         id,
         saved: String(pending.saved),
-        amount: String(pending.payable),
+        amount: String(pending.payable - upfront),
+        upfront: String(upfront),
         pay: payment.later ? 'later' : (payment.paidVia ?? 'UPI'),
       },
     });

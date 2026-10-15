@@ -2,8 +2,9 @@ import { Image, type ImageSourcePropType, View } from 'react-native';
 
 import { CroppedImage } from './CroppedImage';
 
-// Shared AI-generated service icon family. Each transparent PNG uses the same
-// 256px canvas so the category artwork scales consistently across Home cards.
+// Home artwork, as in the released build (1896471): wash, garage, accessories, insurance, AC,
+// denting, batteries, tyres and FASTag use the v2 illustration set (assets/home/v2, trimmed to
+// content); the other tiles keep their Figma frame size and crop.
 
 export type Crop = { w: number; h: number; x: number; y: number };
 export type Art = { source: ImageSourcePropType; w: number; h: number; crop?: Crop; flipX?: boolean; icon?: boolean };
@@ -16,24 +17,39 @@ const a = (path: ImageSourcePropType, w: number, h: number, crop?: Crop, flipX?:
   flipX,
 });
 
-const icon = (source: ImageSourcePropType): Art => ({ source, w: 256, h: 256, icon: true });
-
 export const ART = {
-  challan: icon(require('../../../assets/home/service-icons-v4/challan.png')),
-  insurance: icon(require('../../../assets/home/service-icons-v4/insurance.png')),
-  ac: icon(require('../../../assets/home/service-icons-v4/ac.png')),
-  denting: icon(require('../../../assets/home/service-icons-v4/denting.png')),
-  roadside: icon(require('../../../assets/home/service-icons-v4/roadside.png')),
-  batteries: icon(require('../../../assets/home/service-icons-v4/batteries.png')),
-  tyres: icon(require('../../../assets/home/service-icons-v4/tyres.png')),
-  qr: icon(require('../../../assets/home/service-icons-v4/qr.png')),
-  ev: icon(require('../../../assets/home/service-icons-v4/ev.png')),
-  dealers: icon(require('../../../assets/home/service-icons-v4/dealers.png')),
-  usedCars: icon(require('../../../assets/home/service-icons-v4/used-cars.png')),
-  fastag: icon(require('../../../assets/home/service-icons-v4/fastag.png')),
-  accessories: icon(require('../../../assets/home/service-icons-v4/accessories.png')),
-  wash: icon(require('../../../assets/home/service-icons-v4/wash.png')),
-  garage: icon(require('../../../assets/home/service-icons-v4/garage.png')),
+  challan: a(require('../../../assets/home/challan-check.png'), 80.007, 81, { w: 158.84, h: 104.6, x: -23.68, y: 0 }),
+  insurance: a(require('../../../assets/home/v2/insurance-icon.png'), 57.08, 44),
+  ac: a(require('../../../assets/home/v2/ac-icon.png'), 59.83, 44),
+  denting: a(require('../../../assets/home/v2/denting-icon.png'), 54.57, 44),
+  roadside: a(
+    require('../../../assets/home/roadside.png'),
+    75.061,
+    45,
+    { w: 124.27, h: 207.29, x: -11.53, y: -51.42 },
+    true,
+  ),
+  batteries: a(require('../../../assets/home/v2/battery-icon.png'), 56.93, 44),
+  tyres: a(require('../../../assets/home/v2/tyres-icon.png'), 53.6, 44),
+  qr: a(require('../../../assets/home/connect-qr.png'), 39.738, 39.096, { w: 201.87, h: 136.68, x: -50.78, y: -18.04 }),
+  ev: a(require('../../../assets/home/ev-stations.png'), 79.124, 44, { w: 123.08, h: 147.55, x: -13.06, y: -24.35 }),
+  dealers: a(
+    require('../../../assets/home/car-dealers.png'),
+    64.602,
+    44,
+    { w: 132.42, h: 194.42, x: -18.06, y: -45.27 },
+    true,
+  ),
+  usedCars: a(require('../../../assets/home/used-cars.png'), 72.166, 50, {
+    w: 124.65,
+    h: 179.91,
+    x: -12.43,
+    y: -34.86,
+  }),
+  fastag: a(require('../../../assets/home/v2/fastag-icon.png'), 65.59, 44),
+  accessories: a(require('../../../assets/home/v2/accessories-icon.png'), 38.94, 44),
+  wash: a(require('../../../assets/home/v2/wash-icon.png'), 56.76, 44),
+  garage: a(require('../../../assets/home/v2/garage-icon.png'), 56.63, 44),
   challanCar: a(require('../../../assets/home/challan-car.png'), 97, 40.541, {
     w: 196.67,
     h: 314.42,

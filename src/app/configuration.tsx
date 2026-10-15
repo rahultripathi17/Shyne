@@ -37,6 +37,7 @@ const TRACK = { false: '#D9DBE1', true: ink.text };
 export default function ConfigurationScreen() {
   const insets = useSafeAreaInsets();
   const { blackMember, setProfile, dockPreview, setDockPreview, notifPrefs, setNotifPrefs } = useAppStore();
+  const advanceOn = !dockPreview?.noAdvance;
   const [permission, setPermission] = useState<Permission>('undetermined');
 
   useEffect(() => {
@@ -137,10 +138,18 @@ export default function ConfigurationScreen() {
         <View style={styles.card}>
           <SwitchRow
             icon="albums-outline"
-            title="Show booking dock"
-            sub="The strip above the nav on Home, Rewards and Profile"
+            title="Show sample cards"
+            sub="Demo cards for every state. Your own bookings always show in the dock"
             value={dockOn}
             onChange={(v) => setDockPreview({ off: !v })}
+          />
+          <View style={styles.rule} />
+          <SwitchRow
+            icon="play-skip-forward-outline"
+            title="Long-press to move a booking on"
+            sub="Long-press a booking's button in the dock or My Bookings: on the way → arrived → washing → done"
+            value={advanceOn}
+            onChange={(v) => setDockPreview({ noAdvance: !v })}
           />
           {closed > 0 && (
             <>
@@ -196,7 +205,7 @@ export default function ConfigurationScreen() {
             );
           })}
         </View>
-        {!dockOn && <Text style={styles.note}>Turn on “Show booking dock” to choose cards.</Text>}
+        {!dockOn && <Text style={styles.note}>Turn on “Show sample cards” to choose cards.</Text>}
 
         <Text style={styles.section}>Notifications</Text>
         <View style={styles.card}>
