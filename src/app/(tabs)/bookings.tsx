@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { KindIcon } from '../../components/booking/KindIcon';
 import { BookingSheet } from '../../components/BookingSheet';
+import { InvoiceSheet } from '../../components/invoice/InvoiceSheet';
 import { PrimaryButton } from '../../components/Buttons';
 import { ink } from '../../components/home/homeTheme';
 import { useTabBarSpace } from '../../components/tabBarSpace';
@@ -28,6 +29,7 @@ import { Toast, useToast } from '../../components/Toast';
 import { type BookingItem, type Tone, type VerticalKey, VERTICALS } from '../../data/bookingsDemo';
 import { payLaterCopy, payPhase } from '../../data/payLater';
 import { useAdvanceBooking } from '../../lib/advanceBooking';
+import { downloadInvoice } from '../../lib/invoice';
 import { opensDetails, statusLabel, TONES, useAllBookings } from '../../lib/bookings';
 import { useAppStore } from '../../store/AppStore';
 
@@ -120,15 +122,64 @@ const WHEN_ICON: Record<BookingItem['when']['icon'], IconName> = {
 const subLine = (item: BookingItem) =>
   [item.eyebrow, item.note?.replace(/ included$/, '')].filter(Boolean).join('  ·  ');
 
+const ART = 60;
+const GRID_PAD = 3;
+const GRID_GAP = 2;
+
+/**
+ * Several items in one order: all their pictures in the picture box — 2 side by side, 3 as one
+ * large + two small, 4 as a grid, and “+N” on the last tile when there are more.
+ */
+function ItemPictures({ images }: { images: ImageSourcePropType[] }) {
+  const inner = ART - GRID_PAD * 2;
+  const half = (inner - GRID_GAP) / 2;
+  const tile = (src: ImageSourcePropType, w: number, h: number, key: number, more = 0) => (
+    <View key={key} style={[styles.tile, { width: w, height: h }]}>
+      <Image source={src} resizeMode="contain" style={{ width: w - 4, height: h - 4 }} />
+      {more > 0 && (
+        <View style={styles.more}>
+          <Text style={styles.moreText}>+{more}</Text>
+        </View>
+      )}
+    </View>
+  );
+  const n = images.length;
+  return (
+    <View style={styles.grid} accessibilityLabel={`${n} items`}>
+      {n === 2 && images.map((src, i) => tile(src, half, inner, i))}
+      {n === 3 && (
+        <>
+          {tile(images[0], half, inner, 0)}
+          <View style={{ gap: GRID_GAP }}>
+            {tile(images[1], half, half, 1)}
+            {tile(images[2], half, half, 2)}
+          </View>
+        </>
+      )}
+      {n >= 4 && (
+        <View style={[styles.grid4, { width: inner }]}>
+          {images.slice(0, 4).map((src, i) => tile(src, half, half, i, i === 3 ? n - 4 : 0))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 function BookingCard({
   item,
   onAction,
   onSchedule,
   onAdvance,
+  customer,
+  onInvoice,
 }: {
   item: BookingItem;
   onAction: (item: BookingItem) => void;
   onSchedule: (item: BookingItem) => void;
+  /** Name on challan receipts. */
+  customer: string;
+  /** Opens the invoice sheet (garage services that have an invoice). */
+  onInvoice: (item: BookingItem) => void;
   /** Preview build: long-press the main button to move one of your own bookings on a step. */
   onAdvance?: (item: BookingItem) => void;
 }) {
@@ -157,7 +208,9 @@ function BookingCard({
         accessibilityLabel={item.title}
       >
         <View style={styles.art}>
-          {item.photo ? (
+          {item.images && item.images.length > 1 ? (
+            <ItemPictures images={item.images} />
+          ) : item.photo ? (
             <Image source={item.photo} resizeMode="cover" style={styles.artPhoto} />
           ) : (
             <Image source={art} resizeMode="contain" style={WIDE_ART.has(art) ? styles.artImgWide : styles.artImg} />
@@ -165,10 +218,12 @@ function BookingCard({
         </View>
         <View style={styles.headText}>
           <Text style={styles.title} numberOfLines={2}>
-            {item.title}
+            {item.challan ? item.challan.plate : item.title}
           </Text>
           <Text style={styles.sub} numberOfLines={1}>
-            {subLine(item)}
+            {item.challan
+              ? `${item.eyebrow} · ${item.challan.lines.length} challan${item.challan.lines.length > 1 ? 's' : ''}`
+              : subLine(item)}
           </Text>
         </View>
       </Pressable>
@@ -187,37 +242,74 @@ function BookingCard({
         </View>
       )}
 
-      {/* When, which vehicle, where — one tappable box that opens the journey */}
-      <Pressable
-        onPress={() => onSchedule(item)}
-        style={({ pressed }) => [styles.info, pressed && { backgroundColor: '#F1F2F4' }]}
-        accessibilityRole="button"
-        accessibilityLabel={`${item.when.title}. ${item.meta}. ${item.when.sub}. See journey`}
-      >
-        <View style={styles.infoRow}>
-          <Ionicons name={WHEN_ICON[item.when.icon]} size={16} color={ink.text} />
-          <Text style={styles.dateText} numberOfLines={1}>
-            {item.when.title}
-          </Text>
-          <Ionicons name="chevron-forward" size={15} color={ink.faint} />
+      {/* Challans: each challan in the payment, with its receipt once cleared */}
+      {item.challan ? (
+        <View style={styles.info}>
+          {item.challan.lines.map((l) => (
+            <View key={l.number} style={styles.challanRow}>
+              <Ionicons
+                name={l.cleared ? 'checkmark-circle' : 'hourglass-outline'}
+                size={17}
+                color={l.cleared ? '#1B891F' : '#B76E00'}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.dateText} numberOfLines={1}>
+                  {l.number}
+                </Text>
+                <Text style={styles.challanSub} numberOfLines={1}>
+                  {l.type} · {l.date}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => void downloadInvoice(item, customer, l)}
+                disabled={!l.cleared}
+                hitSlop={6}
+                style={({ pressed }) => [styles.receipt, !l.cleared && { opacity: 0.4 }, pressed && { opacity: 0.7 }]}
+                accessibilityRole="button"
+                accessibilityLabel={l.cleared ? `Receipt for ${l.number}` : 'Receipt ready once cleared'}
+              >
+                <Text style={styles.receiptText}>Receipt</Text>
+              </Pressable>
+            </View>
+          ))}
         </View>
-        <View style={styles.infoRow}>
-          <Ionicons name={META_ICON[item.vertical]} size={16} color={ink.muted} />
-          <Text style={styles.infoText} numberOfLines={1}>
-            {item.meta}
-          </Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Ionicons
-            name={item.subIsNote ? 'information-circle-outline' : 'location-outline'}
-            size={16}
-            color={ink.muted}
-          />
-          <Text style={styles.infoText} numberOfLines={1}>
-            {item.when.sub}
-          </Text>
-        </View>
-      </Pressable>
+      ) : (
+        /* When, which vehicle, where — one tappable box that opens the journey */
+        <Pressable
+          onPress={() => onSchedule(item)}
+          style={({ pressed }) => [styles.info, pressed && { backgroundColor: '#F1F2F4' }]}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.when.title}. ${item.meta}. ${item.when.sub}. See journey`}
+        >
+          <View style={styles.infoRow}>
+            <Ionicons name={WHEN_ICON[item.when.icon]} size={16} color={ink.text} />
+            <Text style={styles.dateText} numberOfLines={1}>
+              {item.when.title}
+            </Text>
+            <Ionicons name="chevron-forward" size={15} color={ink.faint} />
+          </View>
+          {item.meta ? (
+            <View style={styles.infoRow}>
+              <Ionicons name={META_ICON[item.vertical]} size={16} color={ink.muted} />
+              <Text style={styles.infoText} numberOfLines={1}>
+                {item.meta}
+              </Text>
+            </View>
+          ) : null}
+          {item.when.sub ? (
+            <View style={styles.infoRow}>
+              <Ionicons
+                name={item.subIsNote ? 'information-circle-outline' : 'location-outline'}
+                size={16}
+                color={ink.muted}
+              />
+              <Text style={styles.infoText} numberOfLines={1}>
+                {item.when.sub}
+              </Text>
+            </View>
+          ) : null}
+        </Pressable>
+      )}
 
       {item.alert ? (
         <View style={styles.alert}>
@@ -234,9 +326,21 @@ function BookingCard({
               {payLaterCopy(payPhase(item.status === 'Completed'), due, item.paidUpfront).short}
             </Text>
           ) : (
-            <Text style={styles.placed}>{item.placed}</Text>
+            <Text style={styles.placed} numberOfLines={1}>
+              {item.placed}
+            </Text>
           )}
         </View>
+        {item.serviceInvoice && item.action !== 'Invoice' ? (
+          <Pressable
+            onPress={() => onInvoice(item)}
+            hitSlop={8}
+            style={({ pressed }) => [styles.cta, pressed && { backgroundColor: '#F4F5F7' }]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.ctaText}>Invoice</Text>
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={() => onAction(item)}
           onLongPress={onAdvance ? () => onAdvance(item) : undefined}
@@ -300,11 +404,12 @@ export default function BookingsScreen() {
   const insets = useSafeAreaInsets();
   const bottomSpace = useTabBarSpace();
   const toast = useToast();
-  const { dockPreview } = useAppStore();
+  const { dockPreview, name } = useAppStore();
   const advanceBooking = useAdvanceBooking();
   const [filter, setFilter] = useState<VerticalKey>('washes');
   const [history, setHistory] = useState(false);
   const [open, setOpen] = useState<BookingItem>();
+  const [invoiceFor, setInvoiceFor] = useState<BookingItem>();
 
   useFocusEffect(
     useCallback(() => {
@@ -313,7 +418,9 @@ export default function BookingsScreen() {
   );
 
   const all = useAllBookings();
-  const list = all.filter((b) => b.vertical === filter && b.history === history);
+  const list = all.filter(
+    (b) => b.vertical === filter && b.history === history && (b.vertical !== 'challans' || !!b.challan),
+  );
   const vertical = VERTICALS.find((v) => v.key === filter) ?? VERTICALS[0];
 
   const pick = (key: VerticalKey) => {
@@ -324,7 +431,8 @@ export default function BookingsScreen() {
   // Track / View open the full booking page; pay, reorder, renew and book-again come later.
   const showDetails = (item: BookingItem) => router.push(`/booking/${item.id}`);
   const onAction = (item: BookingItem) => {
-    if (opensDetails(item)) showDetails(item);
+    if (item.challan || (item.serviceInvoice && item.action === 'Invoice')) setInvoiceFor(item);
+    else if (opensDetails(item)) showDetails(item);
     else toast.show(`${item.action} — coming soon`);
   };
   const onAdvance = (item: BookingItem) => {
@@ -348,7 +456,7 @@ export default function BookingsScreen() {
           <View style={styles.titleRow}>
             <Text style={styles.screenTitle}>My Bookings</Text>
             <Pressable
-              onPress={() => toast.show('Help & Support — coming soon')}
+              onPress={() => router.push('/help')}
               style={({ pressed }) => [styles.help, pressed && { opacity: 0.7 }]}
               accessibilityRole="button"
               accessibilityLabel="Help"
@@ -432,6 +540,8 @@ export default function BookingsScreen() {
                   onAction={onAction}
                   onSchedule={setOpen}
                   onAdvance={item.own && !dockPreview?.noAdvance ? onAdvance : undefined}
+                  customer={name ?? 'Hoora Customer'}
+                  onInvoice={setInvoiceFor}
                 />
               ))}
             </View>
@@ -450,6 +560,7 @@ export default function BookingsScreen() {
           toast.show(`${what} — coming soon`);
         }}
       />
+      <InvoiceSheet item={invoiceFor} customer={name ?? 'Hoora Customer'} onClose={() => setInvoiceFor(undefined)} />
       <Toast toast={toast} bottom={bottomSpace} />
     </View>
   );
@@ -627,8 +738,8 @@ const styles = StyleSheet.create({
     paddingTop: 34,
   },
   art: {
-    width: 60,
-    height: 60,
+    width: ART,
+    height: ART,
     borderRadius: 12,
     backgroundColor: '#F4F5F7',
     alignItems: 'center',
@@ -638,6 +749,36 @@ const styles = StyleSheet.create({
   artPhoto: {
     width: '100%',
     height: '100%',
+  },
+  grid: {
+    width: ART,
+    height: ART,
+    padding: GRID_PAD,
+    flexDirection: 'row',
+    gap: GRID_GAP,
+  },
+  grid4: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: GRID_GAP,
+  },
+  tile: {
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  more: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(18,18,18,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moreText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 11,
+    color: '#FFFFFF',
   },
   artImg: {
     width: 48,
@@ -681,6 +822,31 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: 12.5,
     color: ink.label,
+  },
+  challanRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  challanSub: {
+    marginTop: 1,
+    fontFamily: fonts.regular,
+    fontSize: 11.5,
+    color: ink.muted,
+  },
+  receipt: {
+    height: 28,
+    paddingHorizontal: 10,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: '#D5D7DC',
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+  },
+  receiptText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 11.5,
+    color: ink.text,
   },
   dateText: {
     flex: 1,

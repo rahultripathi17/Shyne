@@ -333,6 +333,7 @@ export default function ProfileScreen() {
                     if (q.key === 'vehicles') router.push('/vehicles');
                     else if (q.key === 'address') router.push('/address');
                     else if (q.key === 'points') router.push('/refer/points');
+                    else if (q.key === 'help') router.push('/help');
                     else soon(q.label.replace('\n', ' '));
                   }}
                   scaleTo={0.96}

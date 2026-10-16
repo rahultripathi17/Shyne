@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ink } from './home/homeTheme';
 import { fonts } from './theme';
+import { fs, sz } from './responsive';
 
 type Props = {
   title: ReactNode;
@@ -12,10 +13,12 @@ type Props = {
   right?: ReactNode;
   /** A quieter title, for screens whose main heading sits in the content below. */
   subtle?: boolean;
+  /** Android-style back arrow (←) instead of the chevron. */
+  arrow?: boolean;
 };
 
 /** Standard app bar: back button and title on one row, optional action on the right. */
-export function TopBar({ title, topInset, onBack, right, subtle }: Props) {
+export function TopBar({ title, topInset, onBack, right, subtle, arrow }: Props) {
   return (
     <View style={[styles.bar, { paddingTop: topInset + 4 }]}>
       <Pressable
@@ -25,7 +28,7 @@ export function TopBar({ title, topInset, onBack, right, subtle }: Props) {
         accessibilityRole="button"
         accessibilityLabel="Back"
       >
-        <Ionicons name="chevron-back" size={24} color={ink.text} />
+        <Ionicons name={arrow ? 'arrow-back' : 'chevron-back'} size={arrow ? 22 : 24} color={ink.text} />
       </Pressable>
       <Text style={[styles.title, subtle && styles.titleSubtle]} numberOfLines={1}>
         {title}
@@ -39,33 +42,33 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingBottom: 6,
-    minHeight: 52,
+    paddingHorizontal: sz(8),
+    paddingBottom: sz(6),
+    minHeight: sz(52),
   },
   back: {
-    width: 40,
-    height: 40,
+    width: sz(40),
+    height: sz(40),
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
     flex: 1,
-    marginLeft: 2,
+    marginLeft: sz(2),
     fontFamily: fonts.extraBold,
-    fontSize: 17,
+    fontSize: fs(17),
     letterSpacing: -0.3,
     color: ink.text,
   },
   titleSubtle: {
     fontFamily: fonts.bold,
-    fontSize: 16,
+    fontSize: fs(16),
     letterSpacing: -0.1,
     color: ink.label,
   },
   right: {
-    minWidth: 40,
+    minWidth: sz(40),
     alignItems: 'flex-end',
-    paddingRight: 8,
+    paddingRight: sz(8),
   },
 });

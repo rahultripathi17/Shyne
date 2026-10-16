@@ -200,7 +200,11 @@ export default function BookingDetailsScreen() {
               <Text style={styles.helpText}>Call professional</Text>
             </Pressable>
           )}
-          <Pressable onPress={() => soon('Help & Support')} style={styles.helpBtn} accessibilityRole="button">
+          <Pressable
+            onPress={() => router.push({ pathname: '/help/raise', params: { booking: item.id } })}
+            style={styles.helpBtn}
+            accessibilityRole="button"
+          >
             <Ionicons name="headset-outline" size={17} color={ink.text} />
             <Text style={styles.helpText}>Get help</Text>
           </Pressable>

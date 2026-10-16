@@ -68,7 +68,8 @@
         {
           "contactsPermission": "Hoora uses your contacts so you can pick who receives the service or who our partner should call."
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "extra": {
       "router": {},

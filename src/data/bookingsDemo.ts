@@ -40,6 +40,49 @@ export const VERTICALS: { key: VerticalKey; label: string; image: ImageSourcePro
   },
 ];
 
+/** One challan inside a payment. */
+export type ChallanLine = {
+  number: string;
+  type: 'Traffic Challan' | 'Court Challan';
+  date: string;
+  amount: number;
+  /** Settled with the authority (its government receipt is ready). */
+  cleared: boolean;
+};
+
+/** A challan payment made through Hoora, with its invoice (Dev File → Invoice, 882:372). */
+export type ChallanPayment = {
+  plate: string;
+  lines: ChallanLine[];
+  paidOn: string;
+  invoice: {
+    number: string;
+    issued: string;
+    govt: number;
+    discount: number;
+    legalFee: number;
+    gst: number;
+    total: number;
+  };
+};
+
+/** A garage / service invoice (Dev File → Invoice, “Car Service Invoice” 8303:1216). */
+export type ServiceInvoice = {
+  number: string;
+  issued: string;
+  vehicle: string;
+  plate: string;
+  address: string;
+  /** Service summary rows, e.g. Service / Scheduled / Oil Addon. */
+  summary: [string, string][];
+  /** Payment rows: name and amount (or “Included”). */
+  items: [string, string][];
+  itemsTotal: number;
+  paid: number;
+  toCollect: number;
+  total: number;
+};
+
 /** Status colour families — one per meaning, so the same colour always says the same thing. */
 export type Tone = 'progress' | 'transit' | 'pending' | 'active' | 'attention' | 'done' | 'closed';
 
@@ -53,6 +96,8 @@ export type BookingItem = {
   title: string;
   meta: string;
   image?: ImageSourcePropType;
+  /** Orders with several items: every item’s picture, shown together in the card’s picture box. */
+  images?: ImageSourcePropType[];
   /** Service hero photo (the same one Car Services shows), drawn edge to edge. */
   photo?: ImageSourcePropType;
   /** Small highlighted line under the meta, e.g. add-ons or items. */
@@ -79,6 +124,10 @@ export type BookingItem = {
   /** Who the partner calls for this booking. */
   contact?: { name: string; phone: string; role: string };
   action: string;
+  /** Challans: the payment, its challans and invoice. Unpaid challans have none. */
+  challan?: ChallanPayment;
+  /** Garage: the service invoice, downloadable once the service is done. */
+  serviceInvoice?: ServiceInvoice;
   /** Booked in this app (not sample data): it can be moved along in the preview build. */
   own?: boolean;
   /** Primary (dark) for tracking and paying; quiet outline for viewing and reordering. */
@@ -87,6 +136,10 @@ export type BookingItem = {
 };
 
 const IMG = {
+  microfiber: require('../../assets/booking/flow/deal-microfiber.png'),
+  wipes: require('../../assets/booking/flow/deal-wipes.png'),
+  freshener: require('../../assets/booking/flow/deal-freshener.png'),
+  cushion: require('../../assets/home/acc-product3.png'),
   kit: require('../../assets/rewards/prize-carekit.png'),
   dashcam: require('../../assets/home/acc-product2b.png'),
   denting: require('../../assets/home/denting.png'),
@@ -315,9 +368,10 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     status: 'Shipped',
     tone: 'transit',
     eyebrow: 'Cleaning accessories',
-    title: 'Premium Microfiber Set',
-    meta: '1 set · 4 cloths',
-    image: IMG.kit,
+    title: 'Microfiber Cloth + Wet Wipes',
+    meta: '2 items · 340 GSM cloth & wet wipes',
+    image: IMG.microfiber,
+    images: [IMG.microfiber, IMG.wipes],
     when: { icon: 'truck', title: 'Arriving by Tue, 13 Oct', sub: 'Home, Nagpur' },
     placed: 'Ordered 05 Oct · 11:30 AM',
     amount: 499,
@@ -334,7 +388,8 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     eyebrow: 'Car care combo',
     title: 'Detailing Essentials Kit',
     meta: '3 items · Spray, duster & freshener',
-    image: IMG.kit,
+    image: IMG.spray,
+    images: [IMG.spray, IMG.microfiber, IMG.freshener],
     when: { icon: 'truck', title: 'Arriving today, 11 Oct', sub: 'Office, Mumbai' },
     placed: 'Ordered 03 Oct · 9:15 AM',
     amount: 1850,
@@ -349,8 +404,10 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     status: 'Delivered',
     tone: 'done',
     eyebrow: 'Shine & care',
-    title: 'Dashboard Polish + Tyre Gel',
-    meta: '2 items',
+    title: 'Car Care Combo',
+    meta: '4 items · Dashcam, seat cushion, wipes & freshener',
+    image: IMG.dashcam,
+    images: [IMG.dashcam, IMG.cushion, IMG.wipes, IMG.freshener],
     when: { icon: 'receipt', title: 'Mon, 14 Sep · 4:45 PM', sub: 'Khamla Road, Nagpur' },
     placed: 'Ordered 12 Sep · 3:10 PM',
     amount: 850,
@@ -368,10 +425,10 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     tone: 'active',
     eyebrow: 'Prepaid wash pack',
     title: 'Bucket Wash - Basic · 4 Pack',
-    meta: 'Applicable on any sedan',
+    meta: '',
     photo: PHOTO.basic,
     usage: { left: 2, total: 4, label: 'washes remaining' },
-    when: { icon: 'calendar', title: 'Valid until Sat, 24 Oct', sub: 'Any sedan, any Hoora location' },
+    when: { icon: 'calendar', title: 'Valid until Sat, 24 Oct', sub: '' },
     subIsNote: true,
     placed: 'Purchased 24 Sep · 6:40 PM',
     amount: 1199,
@@ -391,6 +448,7 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     photo: PHOTO.premium,
     note: '1 wash already scheduled',
     when: { icon: 'calendar', title: 'Next wash: Mon, 12 Oct · 8:30 AM', sub: 'Valid until 10 Nov, 2026' },
+    subIsNote: true,
     placed: 'Purchased 01 Oct · 10:00 AM',
     amount: 2499,
     action: 'Track booking',
@@ -405,10 +463,10 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     tone: 'closed',
     eyebrow: 'Quarterly package',
     title: 'Bucket Wash - Basic · Quarterly',
-    meta: 'Applicable on any hatchback',
+    meta: '',
     photo: PHOTO.basic,
     usage: { left: 0, total: 6, label: 'washes remaining' },
-    when: { icon: 'receipt', title: 'Ended Thu, 10 Sep', sub: 'Any hatchback' },
+    when: { icon: 'receipt', title: 'Ended Thu, 10 Sep', sub: '' },
     subIsNote: true,
     placed: 'Purchased 10 Jun · 9:45 AM',
     amount: 999,
@@ -441,15 +499,32 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     vertical: 'challans',
     ref: '#CH-12045',
     status: 'Processing',
-    tone: 'progress',
+    tone: 'pending',
     eyebrow: 'E-challan payment',
     title: '2 Challans',
     meta: 'MH 31 CX 1234',
-    when: { icon: 'receipt', title: 'Updated Thu, 8 Oct · 2:30 PM', sub: '1 of 2 challans cleared' },
+    when: { icon: 'receipt', title: 'Paid Sep 28, 10:30 AM', sub: '1 of 2 challans cleared' },
     subIsNote: true,
-    placed: 'Paid 07 Oct · 10:30 AM',
+    placed: 'Paid Sep 28 · 10:30 AM',
     amount: 1500,
-    action: 'Track payment',
+    challan: {
+      plate: 'MH 31 CX 1234',
+      paidOn: 'Paid Sep 28, 10:30 AM',
+      lines: [
+        { number: 'MH3120261234567890', type: 'Traffic Challan', date: 'Sep 25, 2026', amount: 1000, cleared: false },
+        { number: 'MH3120269876543210', type: 'Court Challan', date: 'Aug 10, 2026', amount: 500, cleared: true },
+      ],
+      invoice: {
+        number: 'HOO-INV-2026-0041',
+        issued: '28 Sep 2026',
+        govt: 1500,
+        discount: 300,
+        legalFee: 254,
+        gst: 46,
+        total: 1500,
+      },
+    },
+    action: 'Invoice',
     primary: true,
     history: false,
   },
@@ -461,12 +536,28 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     tone: 'done',
     eyebrow: 'E-challan payment',
     title: 'Traffic Challan Payment',
-    meta: 'MH 31 AB 9999 · 1 challan',
-    when: { icon: 'receipt', title: 'Sat, 15 Aug · 4:15 PM', sub: 'Receipt is available' },
+    meta: 'MH 31 AB 9999',
+    when: { icon: 'receipt', title: 'Paid Aug 15, 04:15 PM', sub: 'Receipt is available' },
     subIsNote: true,
-    placed: 'Paid 15 Aug · 4:15 PM',
+    placed: 'Paid Aug 15 · 4:15 PM',
     amount: 500,
-    action: 'View receipt',
+    challan: {
+      plate: 'MH 31 AB 9999',
+      paidOn: 'Paid Aug 15, 04:15 PM',
+      lines: [
+        { number: 'MH3120265555444433', type: 'Traffic Challan', date: 'Aug 05, 2026', amount: 500, cleared: true },
+      ],
+      invoice: {
+        number: 'HOO-INV-2026-0017',
+        issued: '15 Aug 2026',
+        govt: 500,
+        discount: 0,
+        legalFee: 0,
+        gst: 0,
+        total: 500,
+      },
+    },
+    action: 'Invoice',
     primary: false,
     history: true,
   },
@@ -485,6 +576,25 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     when: { icon: 'calendar', title: 'Started Fri, 9 Oct · 10:00 AM', sub: 'Vision Workspace, Nagpur' },
     placed: 'Booked 07 Oct · 2:00 PM',
     amount: 1299,
+    serviceInvoice: {
+      number: 'HOO-INV-2026-0052',
+      issued: '9 Oct 2026',
+      vehicle: 'Audi A3',
+      plate: 'MH 31 AA 1111',
+      address: 'Vision Workspace, Nagpur',
+      summary: [
+        ['Service', 'AC Inspection & Service'],
+        ['Scheduled', '9 Oct 2026 at 10:00'],
+      ],
+      items: [
+        ['AC Inspection & Service', '₹1,299'],
+        ['AC gas top-up check', 'Included'],
+      ],
+      itemsTotal: 1299,
+      paid: 99,
+      toCollect: 1200,
+      total: 1299,
+    },
     action: 'Track service',
     primary: true,
     history: false,
@@ -516,11 +626,30 @@ export const SAMPLE_BOOKINGS: BookingItem[] = [
     eyebrow: 'Periodic maintenance',
     title: 'Engine Oil & Filter Service',
     meta: 'Honda City · MH 31 CX 1234',
-    when: { icon: 'receipt', title: 'Mon, 21 Sep · 5:20 PM', sub: 'Invoice available' },
-    subIsNote: true,
+    when: { icon: 'receipt', title: 'Mon, 21 Sep · 5:20 PM', sub: 'Vision Workspace, Nagpur' },
     placed: 'Booked 20 Sep · 11:40 AM',
     amount: 3299,
-    action: 'View invoice',
+    serviceInvoice: {
+      number: 'HOO-INV-2026-0033',
+      issued: '21 Sep 2026',
+      vehicle: 'Honda City',
+      plate: 'MH 31 CX 1234',
+      address: 'Vision Workspace, Nagpur',
+      summary: [
+        ['Service', 'Engine Oil & Filter Service'],
+        ['Scheduled', '21 Sep 2026 at 17:20'],
+        ['Oil Addon', '5W30 (Synthetic) Engine Oil'],
+      ],
+      items: [
+        ['Engine Oil & Filter Service', '₹3,299'],
+        ['5W30 (Synthetic) Engine Oil', 'Included'],
+      ],
+      itemsTotal: 3299,
+      paid: 3299,
+      toCollect: 0,
+      total: 3299,
+    },
+    action: 'Invoice',
     primary: false,
     history: true,
   },

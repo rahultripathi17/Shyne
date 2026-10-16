@@ -6,6 +6,7 @@ import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 
 import { ADD_ONS, TRACK, WRONG_TAGS } from '../../data/serviceTracking';
 import { Sheet } from '../rewards/ClaimForm';
+import { fs, sz } from '../responsive';
 import { fonts } from '../theme';
 import { T } from './trackTheme';
 
@@ -623,14 +624,14 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   yellow: {
-    height: 50,
-    borderRadius: 8,
+    height: sz(46),
+    borderRadius: sz(8),
     alignItems: 'center',
     justifyContent: 'center',
   },
   yellowText: {
     fontFamily: fonts.semiBold,
-    fontSize: 15,
+    fontSize: fs(14.5),
     color: T.ink,
   },
   stars: {

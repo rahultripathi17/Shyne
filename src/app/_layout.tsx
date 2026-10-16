@@ -50,6 +50,11 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
         <Stack.Screen name="booking/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="booking/confirmed" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="configuration" options={{ headerShown: false }} />
+        {/* Help & Support: home, raise ticket, my tickets, a ticket's chat */}
+        <Stack.Screen name="help/index" options={{ headerShown: false }} />
+        <Stack.Screen name="help/raise" options={{ headerShown: false }} />
+        <Stack.Screen name="help/tickets" options={{ headerShown: false }} />
+        <Stack.Screen name="help/ticket/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="refer/leagues" options={{ headerShown: false }} />
         <Stack.Screen name="refer/leaderboard" options={{ headerShown: false }} />
         <Stack.Screen name="refer/referrals" options={{ headerShown: false }} />

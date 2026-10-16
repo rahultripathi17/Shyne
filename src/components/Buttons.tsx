@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, type StyleProp, StyleSheet, Text, View, t
 
 import { ink } from './home/homeTheme';
 import { fonts } from './theme';
+import { fs, sz } from './responsive';
 
 type PrimaryProps = {
   label: string;
@@ -63,10 +64,10 @@ export function ActionFooter({ bottomInset, children }: { bottomInset: number; c
 
 const styles = StyleSheet.create({
   primary: {
-    height: 54,
+    height: sz(48),
     flexDirection: 'row',
-    gap: 8,
-    borderRadius: 14,
+    gap: sz(8),
+    borderRadius: sz(14),
     backgroundColor: ink.text,
     alignItems: 'center',
     justifyContent: 'center',
@@ -80,7 +81,7 @@ const styles = StyleSheet.create({
   },
   primaryText: {
     fontFamily: fonts.extraBold,
-    fontSize: 16,
+    fontSize: fs(15),
     letterSpacing: 0.1,
     color: '#FFFFFF',
   },
@@ -88,19 +89,19 @@ const styles = StyleSheet.create({
     color: '#A3A6AE',
   },
   text: {
-    height: 44,
+    height: sz(44),
     alignItems: 'center',
     justifyContent: 'center',
   },
   textLabel: {
     fontFamily: fonts.bold,
-    fontSize: 15,
+    fontSize: fs(15),
     color: ink.label,
   },
   footer: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    gap: 4,
+    paddingHorizontal: sz(20),
+    paddingTop: sz(10),
+    gap: sz(4),
     backgroundColor: '#FFFFFF',
   },
 });
